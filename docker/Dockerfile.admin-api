@@ -1,0 +1,42 @@
+# syntax=docker/dockerfile:1
+# ============================================================
+# admin-api — multi-stage image
+# Stage 1 (builder): node:20-alpine, npm ci + nest build admin-api
+# Stage 2 (runtime): minimal, dist + prod node_modules only
+# ============================================================
+
+# ---- Builder ----
+FROM node:20-alpine AS builder
+WORKDIR /app
+
+# Install full deps (incl. dev) for the Nest build.
+COPY package.json package-lock.json ./
+RUN npm ci
+
+# Copy sources needed to build (tsconfig aliases, nest-cli, libs, apps, scripts).
+COPY tsconfig.base.json tsconfig.build.json tsconfig.json nest-cli.json webpack.config.js ./
+COPY libs ./libs
+COPY apps ./apps
+COPY scripts ./scripts
+
+RUN npm run build:admin
+
+# Prune to production dependencies for the runtime stage.
+RUN npm prune --omit=dev
+
+# ---- Runtime ----
+FROM node:20-alpine AS runtime
+WORKDIR /app
+ENV NODE_ENV=production
+ENV APP_NAME=admin-api
+ENV ADMIN_API_PORT=3001
+
+# Run as the unprivileged user that ships with the base image.
+USER node
+
+COPY --chown=node:node --from=builder /app/node_modules ./node_modules
+COPY --chown=node:node --from=builder /app/dist ./dist
+COPY --chown=node:node --from=builder /app/package.json ./package.json
+
+EXPOSE 3001
+CMD ["node", "dist/apps/admin-api/main"]

@@ -1,0 +1,36 @@
+import { HttpStatus } from '@nestjs/common';
+
+/**
+ * SSO 集成错误码（value === key，便于跨服务对齐与日志检索）。
+ */
+export enum SsoErrorCode {
+  SSO_PROVIDER_NOT_FOUND = 'SSO_PROVIDER_NOT_FOUND',
+  SSO_PROVIDER_NOT_SUPPORTED = 'SSO_PROVIDER_NOT_SUPPORTED',
+  SSO_STATE_INVALID = 'SSO_STATE_INVALID',
+  SSO_STATE_MISMATCH = 'SSO_STATE_MISMATCH',
+  SSO_CODE_EXCHANGE_FAILED = 'SSO_CODE_EXCHANGE_FAILED',
+  SSO_CODE_INVALID = 'SSO_CODE_INVALID',
+  SSO_USERINFO_FAILED = 'SSO_USERINFO_FAILED',
+  SSO_PROFILE_INVALID = 'SSO_PROFILE_INVALID',
+  SSO_IDENTITY_LINK_FAILED = 'SSO_IDENTITY_LINK_FAILED',
+  SSO_ACCOUNT_NOT_LINKED = 'SSO_ACCOUNT_NOT_LINKED',
+  /** SSO 主体不存在（管理端 SSO 不自动开户，未命中已有管理员时抛出）。 */
+  SSO_ACCOUNT_NOT_FOUND = 'SSO_ACCOUNT_NOT_FOUND',
+}
+
+/**
+ * SSO 错误码 → HTTP 状态映射，模块加载时通过 `registerErrorCodeHttpStatus` 注册。
+ */
+export const SsoErrorCodeHttpStatus: Record<SsoErrorCode, HttpStatus> = {
+  [SsoErrorCode.SSO_PROVIDER_NOT_FOUND]: HttpStatus.NOT_FOUND,
+  [SsoErrorCode.SSO_PROVIDER_NOT_SUPPORTED]: HttpStatus.BAD_REQUEST,
+  [SsoErrorCode.SSO_ACCOUNT_NOT_LINKED]: HttpStatus.NOT_FOUND,
+  [SsoErrorCode.SSO_ACCOUNT_NOT_FOUND]: HttpStatus.NOT_FOUND,
+  [SsoErrorCode.SSO_STATE_INVALID]: HttpStatus.BAD_REQUEST,
+  [SsoErrorCode.SSO_STATE_MISMATCH]: HttpStatus.UNAUTHORIZED,
+  [SsoErrorCode.SSO_CODE_INVALID]: HttpStatus.UNAUTHORIZED,
+  [SsoErrorCode.SSO_PROFILE_INVALID]: HttpStatus.BAD_REQUEST,
+  [SsoErrorCode.SSO_CODE_EXCHANGE_FAILED]: HttpStatus.BAD_GATEWAY,
+  [SsoErrorCode.SSO_USERINFO_FAILED]: HttpStatus.BAD_GATEWAY,
+  [SsoErrorCode.SSO_IDENTITY_LINK_FAILED]: HttpStatus.BAD_GATEWAY,
+};

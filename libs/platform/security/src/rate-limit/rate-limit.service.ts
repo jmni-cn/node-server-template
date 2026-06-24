@@ -1,0 +1,49 @@
+import { Injectable } from '@nestjs/common';
+import { RedisService } from '@platform/cache';
+
+const KEY_PREFIX = 'security:ratelimit:';
+
+export interface RateLimitResult {
+  /** Whether the current hit is within the configured limit. */
+  allowed: boolean;
+  /** Remaining requests in the current window (never negative). */
+  remaining: number;
+  /** Seconds until the current window resets. */
+  resetInSeconds: number;
+}
+
+/**
+ * Fixed-window rate limiter backed by Redis INCR + EXPIRE.
+ */
+@Injectable()
+export class RateLimitService {
+  constructor(private readonly redis: RedisService) {}
+
+  /**
+   * Register a hit against the given key.
+   *
+   * @param key        Logical identity to limit (e.g. ip, ip:path, user).
+   * @param windowMs   Window size in milliseconds.
+   * @param max        Maximum allowed hits per window.
+   */
+  async hit(
+    key: string,
+    windowMs: number,
+    max: number,
+  ): Promise<RateLimitResult> {
+    const redisKey = `${KEY_PREFIX}${key}`;
+    const windowSeconds = Math.ceil(windowMs / 1000);
+
+    const count = await this.redis.incr(redisKey);
+    if (count === 1) {
+      await this.redis.expire(redisKey, windowSeconds);
+    }
+
+    const ttl = await this.redis.ttl(redisKey);
+    const resetInSeconds = ttl > 0 ? ttl : windowSeconds;
+    const remaining = Math.max(0, max - count);
+    const allowed = count <= max;
+
+    return { allowed, remaining, resetInSeconds };
+  }
+}

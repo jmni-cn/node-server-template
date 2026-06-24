@@ -1,0 +1,38 @@
+# syntax=docker/dockerfile:1
+# ============================================================
+# user-api — multi-stage image
+# Stage 1 (builder): node:20-alpine, npm ci + nest build user-api
+# Stage 2 (runtime): minimal, dist + prod node_modules only
+# ============================================================
+
+# ---- Builder ----
+FROM node:20-alpine AS builder
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY tsconfig.base.json tsconfig.build.json tsconfig.json nest-cli.json webpack.config.js ./
+COPY libs ./libs
+COPY apps ./apps
+COPY scripts ./scripts
+
+RUN npm run build:user
+
+RUN npm prune --omit=dev
+
+# ---- Runtime ----
+FROM node:20-alpine AS runtime
+WORKDIR /app
+ENV NODE_ENV=production
+ENV APP_NAME=user-api
+ENV USER_API_PORT=3002
+
+USER node
+
+COPY --chown=node:node --from=builder /app/node_modules ./node_modules
+COPY --chown=node:node --from=builder /app/dist ./dist
+COPY --chown=node:node --from=builder /app/package.json ./package.json
+
+EXPOSE 3002
+CMD ["node", "dist/apps/user-api/main"]

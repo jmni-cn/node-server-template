@@ -1,0 +1,36 @@
+---
+description: Import-direction rules between the four library layers and apps. Mirrors references/LAYER-SPEC.md as an enforceable rule.
+globs: apps/**/*.ts,libs/**/*.ts
+alwaysApply: true
+---
+
+# Layer import direction
+
+Allowed imports (one-way only):
+
+```
+apps         -> @core, @platform, @domains, @integrations
+integrations -> @core, @platform, @domains
+domains      -> @core, @platform
+platform     -> @core
+core         -> @core only (leaf)
+```
+
+## Do
+
+- Import from the **alias barrel** (`@domains/identity`, `@platform/auth`), not
+  deep relative paths into another lib.
+- When `platform` needs domain knowledge, define a **port/token** (like
+  `ACCESS_CHECKER` in `@platform/auth`) and let the app bind a domain impl.
+- Re-export a lib's public surface from its `src/index.ts`.
+
+## Don't
+
+- Don't import "up": `platform` must not import `@domains/*` or `@integrations/*`;
+  `domains` must not import `@integrations/*` or another `@domains/*`; `core` must
+  not import `@platform/*`.
+- Don't import one app from another (`apps/*` are isolated deployables).
+- Don't bypass the barrel by reaching into another lib's `src/...` internals.
+
+Enforced by `npm run check:layers` (`scripts/check-layer-rules.ts`) and the ESLint
+rules in `tools/eslint-rules` (`no-cross-app-import`, etc.).

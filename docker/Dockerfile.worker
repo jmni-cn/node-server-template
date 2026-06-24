@@ -1,0 +1,43 @@
+# syntax=docker/dockerfile:1
+# ============================================================
+# worker — multi-stage image
+# Stage 1 (builder): node:20-alpine, npm ci + nest build worker
+# Stage 2 (runtime): minimal, dist + prod node_modules only
+#
+# The worker has no public API server. It consumes BullMQ queues and runs
+# cron schedules. An optional health probe can be enabled via WORKER_HEALTH_PORT
+# (default 3003); no port is EXPOSEd by default to keep the process minimal.
+# ============================================================
+
+# ---- Builder ----
+FROM node:20-alpine AS builder
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY tsconfig.base.json tsconfig.build.json tsconfig.json nest-cli.json webpack.config.js ./
+COPY libs ./libs
+COPY apps ./apps
+COPY scripts ./scripts
+
+RUN npm run build:worker
+
+RUN npm prune --omit=dev
+
+# ---- Runtime ----
+FROM node:20-alpine AS runtime
+WORKDIR /app
+ENV NODE_ENV=production
+ENV APP_NAME=worker
+ENV WORKER_HEALTH_PORT=3003
+
+USER node
+
+COPY --chown=node:node --from=builder /app/node_modules ./node_modules
+COPY --chown=node:node --from=builder /app/dist ./dist
+COPY --chown=node:node --from=builder /app/package.json ./package.json
+
+# No EXPOSE: worker has no public API. Uncomment to publish the optional health port.
+# EXPOSE 3003
+CMD ["node", "dist/apps/worker/main"]

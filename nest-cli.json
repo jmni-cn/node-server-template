@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json.schemastore.org/nest-cli",
+  "collection": "@nestjs/schematics",
+  "sourceRoot": "apps/admin-api/src",
+  "compilerOptions": {
+    "deleteOutDir": true,
+    "webpack": true,
+    "webpackConfigPath": "webpack.config.js",
+    "tsConfigPath": "tsconfig.build.json"
+  },
+  "monorepo": true,
+  "root": "apps",
+  "projects": {
+    "admin-api": {
+      "type": "application",
+      "root": "apps/admin-api",
+      "entryFile": "main",
+      "sourceRoot": "apps/admin-api/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/admin-api/tsconfig.app.json",
+        "webpack": true,
+        "webpackConfigPath": "webpack.config.js"
+      }
+    },
+    "user-api": {
+      "type": "application",
+      "root": "apps/user-api",
+      "entryFile": "main",
+      "sourceRoot": "apps/user-api/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/user-api/tsconfig.app.json",
+        "webpack": true,
+        "webpackConfigPath": "webpack.config.js"
+      }
+    },
+    "worker": {
+      "type": "application",
+      "root": "apps/worker",
+      "entryFile": "main",
+      "sourceRoot": "apps/worker/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/worker/tsconfig.app.json",
+        "webpack": true,
+        "webpackConfigPath": "webpack.config.js"
+      }
+    },
+
+    "core-common": { "type": "library", "root": "libs/core/common", "entryFile": "index", "sourceRoot": "libs/core/common/src", "compilerOptions": { "tsConfigPath": "libs/core/common/tsconfig.lib.json" } },
+    "core-config": { "type": "library", "root": "libs/core/config", "entryFile": "index", "sourceRoot": "libs/core/config/src", "compilerOptions": { "tsConfigPath": "libs/core/config/tsconfig.lib.json" } },
+    "core-database": { "type": "library", "root": "libs/core/database", "entryFile": "index", "sourceRoot": "libs/core/database/src", "compilerOptions": { "tsConfigPath": "libs/core/database/tsconfig.lib.json" } },
+    "core-logger": { "type": "library", "root": "libs/core/logger", "entryFile": "index", "sourceRoot": "libs/core/logger/src", "compilerOptions": { "tsConfigPath": "libs/core/logger/tsconfig.lib.json" } },
+    "core-request-context": { "type": "library", "root": "libs/core/request-context", "entryFile": "index", "sourceRoot": "libs/core/request-context/src", "compilerOptions": { "tsConfigPath": "libs/core/request-context/tsconfig.lib.json" } },
+    "core-i18n": { "type": "library", "root": "libs/core/i18n", "entryFile": "index", "sourceRoot": "libs/core/i18n/src", "compilerOptions": { "tsConfigPath": "libs/core/i18n/tsconfig.lib.json" } },
+
+    "platform-auth": { "type": "library", "root": "libs/platform/auth", "entryFile": "index", "sourceRoot": "libs/platform/auth/src", "compilerOptions": { "tsConfigPath": "libs/platform/auth/tsconfig.lib.json" } },
+    "platform-security": { "type": "library", "root": "libs/platform/security", "entryFile": "index", "sourceRoot": "libs/platform/security/src", "compilerOptions": { "tsConfigPath": "libs/platform/security/tsconfig.lib.json" } },
+    "platform-cache": { "type": "library", "root": "libs/platform/cache", "entryFile": "index", "sourceRoot": "libs/platform/cache/src", "compilerOptions": { "tsConfigPath": "libs/platform/cache/tsconfig.lib.json" } },
+    "platform-queue": { "type": "library", "root": "libs/platform/queue", "entryFile": "index", "sourceRoot": "libs/platform/queue/src", "compilerOptions": { "tsConfigPath": "libs/platform/queue/tsconfig.lib.json" } },
+    "platform-audit": { "type": "library", "root": "libs/platform/audit", "entryFile": "index", "sourceRoot": "libs/platform/audit/src", "compilerOptions": { "tsConfigPath": "libs/platform/audit/tsconfig.lib.json" } },
+    "platform-task": { "type": "library", "root": "libs/platform/task", "entryFile": "index", "sourceRoot": "libs/platform/task/src", "compilerOptions": { "tsConfigPath": "libs/platform/task/tsconfig.lib.json" } },
+    "platform-health": { "type": "library", "root": "libs/platform/health", "entryFile": "index", "sourceRoot": "libs/platform/health/src", "compilerOptions": { "tsConfigPath": "libs/platform/health/tsconfig.lib.json" } },
+
+    "domains-identity": { "type": "library", "root": "libs/domains/identity", "entryFile": "index", "sourceRoot": "libs/domains/identity/src", "compilerOptions": { "tsConfigPath": "libs/domains/identity/tsconfig.lib.json" } },
+    "domains-access-control": { "type": "library", "root": "libs/domains/access-control", "entryFile": "index", "sourceRoot": "libs/domains/access-control/src", "compilerOptions": { "tsConfigPath": "libs/domains/access-control/tsconfig.lib.json" } },
+    "domains-system": { "type": "library", "root": "libs/domains/system", "entryFile": "index", "sourceRoot": "libs/domains/system/src", "compilerOptions": { "tsConfigPath": "libs/domains/system/tsconfig.lib.json" } },
+
+    "integrations-sso": { "type": "library", "root": "libs/integrations/sso", "entryFile": "index", "sourceRoot": "libs/integrations/sso/src", "compilerOptions": { "tsConfigPath": "libs/integrations/sso/tsconfig.lib.json" } }
+  }
+}

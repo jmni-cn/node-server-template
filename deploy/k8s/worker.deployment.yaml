@@ -1,0 +1,58 @@
+# Worker has no public API and therefore no Service.
+# It consumes BullMQ queues and runs cron schedules. Keep a single replica so
+# scheduled (cron) jobs do not fire on multiple instances; scale throughput
+# via WORKER_CONCURRENCY instead.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  labels:
+    app: worker
+    app.kubernetes.io/part-of: node-server-template
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: worker
+  template:
+    metadata:
+      labels:
+        app: worker
+    spec:
+      containers:
+        - name: worker
+          image: node-server-template/worker:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: health
+              containerPort: 3003
+          envFrom:
+            - configMapRef:
+                name: node-server-template-config
+            - secretRef:
+                name: node-server-template-secret
+          env:
+            - name: APP_NAME
+              value: worker
+          # Probes assume WORKER_HEALTH_PORT=3003 is enabled (see configmap).
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: health
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /health/liveness
+              port: health
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: '1'
+              memory: 512Mi

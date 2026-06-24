@@ -1,0 +1,40 @@
+---
+description: Test layout, shared scaffold, and the must-cover checklist for platform behaviors.
+globs: apps/**/test/**/*.ts,libs/**/*.spec.ts,test/**/*.ts
+alwaysApply: true
+---
+
+# Testing rules
+
+## Layout
+
+| Kind | Location | Pattern |
+|------|----------|---------|
+| unit | colocated in `libs/**` / `apps/**` | `*.spec.ts` |
+| integration | `apps/<app>/test/integration` | `*.integration.spec.ts` |
+| e2e | `apps/<app>/test/e2e` | `*.e2e-spec.ts` (config `test/jest-e2e.json`) |
+
+Shared scaffold in `/test`: `setup/jest.setup.ts` (`reflect-metadata` + env
+defaults), `setup/test-db.setup.ts` (DataSource + **run migrations**, never
+synchronize), `helpers/` (`auth-test`, `database-test`, `request-test`),
+`fixtures/` (`users`, `roles`, `permissions`).
+
+## Rules
+
+- Unit tests mock collaborators (no DB/Redis). e2e tests boot the Fastify app via
+  `createTestApp(...)` and need real MySQL + Redis (CI services or
+  `docker/docker-compose.test.yml`).
+- Never enable `synchronize` in tests — run migrations.
+- Assert the **unified envelope** in e2e: check `body.success` and `body.code`,
+  not raw shapes.
+- Reset state between e2e tests with `truncateAll()` + reseed, or `withRollback`.
+
+## Must cover (platform behaviors)
+
+login (success + wrong password + disabled), register (+ duplicate), refresh
+(success + expired/invalid), permission (admin route with/without
+`@Permissions`), rate-limit (over-limit + `X-RateLimit-*` headers), sso-callback
+(bad `state` + happy path), audit (write enqueues `WRITE_OPERATION_LOG`, worker
+persists), queue (correct `QUEUE_NAMES`/`JOB_NAMES`; unknown job throws),
+migration (empty DB → current schema), seed (admin with `rbac:*` + base
+dictionaries).

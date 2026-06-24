@@ -1,0 +1,22 @@
+[Unit]
+Description=node-server-template worker (BullMQ consumer + scheduler)
+After=network.target mysql.service redis.service
+Wants=mysql.service redis.service
+
+[Service]
+Type=simple
+User=app
+Group=app
+WorkingDirectory=/opt/node-server-template
+EnvironmentFile=/etc/node-server-template/worker.env
+Environment=NODE_ENV=production
+Environment=APP_NAME=worker
+ExecStart=/usr/bin/node dist/apps/worker/main.js
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=worker
+
+[Install]
+WantedBy=multi-user.target

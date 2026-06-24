@@ -1,0 +1,52 @@
+---
+description: Conventions for app feature modules, controllers, DTOs and VOs. Controllers are a thin HTTP layer over domain services.
+globs: apps/**/*.ts,libs/**/dto/**/*.ts,libs/**/vo/**/*.ts
+alwaysApply: true
+---
+
+# NestJS module / controller conventions
+
+A feature module under `apps/<app>/src/modules/<feature>/` wires controllers and
+delegates to domain/platform services. Generate skeletons with
+`scripts/create-module.ts`.
+
+## Controllers
+
+- **Call services only.** No `@InjectRepository`, no `getRepository`, no
+  `@nestjs/typeorm` in apps. If the operation is missing, add a method to the
+  domain service and export it from the lib barrel, then call it.
+- **Return a VO or `void`** — never an entity. Entity→VO mapping happens in the
+  lib's `mapper`/`assembler` (enforced by `no-entity-response`).
+- **No business logic.** Orchestration lives in services; composition of multiple
+  sources lives in assemblers; input validation lives in DTOs.
+- **Delegate to an app application service; no multi-service orchestration or
+  business branching in controllers.** If a handler touches more than one lib
+  service or applies a business rule (status checks, token issuance, session
+  rotation, security-event recording…), move that into
+  `apps/<app>/src/modules/<feature>/<feature>.service.ts` (an `@Injectable()`
+  registered in the module `providers`) and have the controller call ONE method.
+  The app service composes lib services and never injects a repository / imports
+  another app. **HTTP transport (cookies / `@Res` / redirects) stays in the
+  controller**; the app service returns plain data. A pure single-call delegation
+  (controller → one domain method → VO) needs no app service.
+- Annotate responses with `@ApiBaseResponse(Vo)` / `@ApiArrayResponse(Vo)` /
+  `@ApiPaginatedResponse(Vo)` / `@ApiSuccessResponse()` from `@core/common`.
+- Apply cross-cutting decorators: `@Public()` to open a route, `@Permissions(...)`
+  on admin routes, `@OperationLogDecorator(...)` on writes, `@RateLimit(...)` on
+  login/register/refresh/sso/password, `@CurrentUser()` / `@CurrentAdminUser()`
+  to read the principal.
+
+## DTOs and VOs
+
+- DTOs are class-validator inputs (`create-user.dto.ts` → `CreateUserDto`).
+- VOs are outputs with `@ApiProperty` (`user.vo.ts` → `UserVo`).
+- Don't expose entities directly; build VOs.
+
+## Modules
+
+- Import the relevant lib module (e.g. `IdentityModule` from `@domains/identity`)
+  and inject its services.
+- Bind ports the app must provide (e.g. `ACCESS_CHECKER` → access-control impl).
+
+The `TransformInterceptor` wraps every returned VO in the unified envelope; never
+build the envelope or call `res.send` from a controller.

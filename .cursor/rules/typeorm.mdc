@@ -1,0 +1,34 @@
+---
+description: TypeORM + MySQL entity and migration rules. synchronize is always false; schema changes ship as migrations only.
+globs: libs/**/entities/**/*.ts,libs/**/*.entity.ts,database/**/*.ts
+alwaysApply: true
+---
+
+# TypeORM (MySQL) rules
+
+Database is **MySQL** (`mysql2`), `type: 'mysql'`. There is no postgres anywhere.
+
+## Entities
+
+- Extend `BaseEntity` (mutable, soft-deletable, user-attributed) or
+  `SystemBaseEntity` (system rows, no user attribution) from `@core/database`.
+- Every entity sets `protected static uidPrefix = '<prefix>'`; `uid` is generated
+  on insert as `<prefix>_<nanoid>` (32-char varchar, unique, indexed).
+- `id` is an auto-increment bigint PK; `uid` is the external/business identifier.
+- Text columns use `utf8mb4` (matches `docker/mysql/init.sql`).
+- Repositories are injected and used **only** inside a lib's `services/` — never
+  in an app, never in a controller.
+
+## Migrations only — never synchronize
+
+- `synchronize: false` always (including tests).
+- All schema changes are TypeORM migrations under `/database/migrations`:
+  - `npm run migration:generate -- database/migrations/<Name>` to diff,
+  - `npm run migration:run` / `npm run migration:revert` to apply/rollback.
+- Migration class names are PascalChange + timestamp; keep `up`/`down` symmetric.
+- Never edit an applied migration — add a new one.
+- Seed data is not a migration; use `npm run seed` (`database/seeds`).
+
+The CLI data source is `database/data-source.ts` (globs entities from
+`libs/**/*.entity.ts` + `apps/**/*.entity.ts`, migrations from
+`database/migrations/*.ts`, `migrationsTableName: 'migrations'`).

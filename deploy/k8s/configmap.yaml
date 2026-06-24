@@ -1,0 +1,35 @@
+# Non-secret runtime configuration shared by all apps.
+# Secrets (DB password, JWT secrets, Redis password) live in a Secret — see secret.example.yaml.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: node-server-template-config
+  labels:
+    app.kubernetes.io/part-of: node-server-template
+data:
+  NODE_ENV: 'production'
+  LOG_LEVEL: 'info'
+  DEFAULT_LANGUAGE: 'zh-CN'
+
+  # Database (host/port/name; credentials come from the Secret).
+  DB_HOST: 'mysql'
+  DB_PORT: '3306'
+  DB_DATABASE: 'app_template'
+  DB_CONNECTION_LIMIT: '10'
+  DB_LOGGING: 'false'
+
+  # Redis (password comes from the Secret).
+  REDIS_HOST: 'redis'
+  REDIS_PORT: '6379'
+  REDIS_DB: '0'
+
+  # Per-app HTTP settings.
+  ADMIN_API_PORT: '3001'
+  ADMIN_API_PREFIX: 'admin'
+  USER_API_PORT: '3002'
+  USER_API_PREFIX: ''
+
+  # Worker settings.
+  WORKER_CONCURRENCY: '5'
+  WORKER_ENABLE_SCHEDULE: 'true'
+  WORKER_HEALTH_PORT: '3003'

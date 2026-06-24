@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "declaration": false
+  },
+  "include": ["apps/**/*", "libs/**/*", "scripts/**/*", "database/**/*", "test/**/*"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "scripts/check-no-ai.ts",
+    "scripts/check-boundaries.ts",
+    "scripts/check-layer-rules.ts"
+  ]
+}

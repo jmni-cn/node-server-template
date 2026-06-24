@@ -1,0 +1,68 @@
+# ============================================================
+# Test compose: ephemeral MySQL + Redis on alternate ports + a test runner.
+#
+# Alternate host ports (3307 / 6380) avoid clashing with a dev stack.
+# The `runner` service builds the app image and runs the e2e suite against
+# the throwaway infra.
+#
+#   docker compose -f docker/docker-compose.test.yml up --abort-on-container-exit --exit-code-from runner
+# ============================================================
+name: node-server-template-test
+
+services:
+  mysql-test:
+    image: mysql:8
+    environment:
+      MYSQL_ROOT_PASSWORD: test
+      MYSQL_DATABASE: app_template_test
+      MYSQL_USER: app_test
+      MYSQL_PASSWORD: app_test
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    ports:
+      - '3307:3306'
+    tmpfs:
+      - /var/lib/mysql
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-uroot', '-ptest']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  redis-test:
+    image: redis:7-alpine
+    command: ['redis-server', '--appendonly', 'no', '--save', '']
+    ports:
+      - '6380:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  runner:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.admin-api
+      target: builder
+    working_dir: /app
+    environment:
+      NODE_ENV: test
+      APP_NAME: admin-api
+      DB_HOST: mysql-test
+      DB_PORT: '3306'
+      DB_USERNAME: root
+      DB_PASSWORD: test
+      DB_DATABASE: app_template_test
+      REDIS_HOST: redis-test
+      REDIS_PORT: '6379'
+      JWT_SECRET: test-access-secret
+      JWT_REFRESH_SECRET: test-refresh-secret
+    command: ['npm', 'run', 'test:e2e']
+    depends_on:
+      mysql-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy

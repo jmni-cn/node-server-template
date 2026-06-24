@@ -1,0 +1,22 @@
+[Unit]
+Description=node-server-template user-api
+After=network.target mysql.service redis.service
+Wants=mysql.service redis.service
+
+[Service]
+Type=simple
+User=app
+Group=app
+WorkingDirectory=/opt/node-server-template
+EnvironmentFile=/etc/node-server-template/user-api.env
+Environment=NODE_ENV=production
+Environment=APP_NAME=user-api
+ExecStart=/usr/bin/node dist/apps/user-api/main.js
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=user-api
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,23 @@
+[Unit]
+Description=node-server-template admin-api
+After=network.target mysql.service redis.service
+Wants=mysql.service redis.service
+
+[Service]
+Type=simple
+User=app
+Group=app
+WorkingDirectory=/opt/node-server-template
+# Non-secret + secret env (DB_*, JWT_*, REDIS_*) loaded from this file.
+EnvironmentFile=/etc/node-server-template/admin-api.env
+Environment=NODE_ENV=production
+Environment=APP_NAME=admin-api
+ExecStart=/usr/bin/node dist/apps/admin-api/main.js
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=admin-api
+
+[Install]
+WantedBy=multi-user.target

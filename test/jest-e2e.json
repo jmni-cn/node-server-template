@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json.schemastore.org/jest.json",
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": "..",
+  "testRegex": ".*\\.e2e-spec\\.ts$",
+  "transform": {
+    "^.+\\.(t|j)s$": "ts-jest"
+  },
+  "transformIgnorePatterns": ["node_modules/(?!(nanoid|uuid)/)"],
+  "testEnvironment": "node",
+  "setupFiles": ["<rootDir>/test/setup/jest.setup.ts"],
+  "roots": ["<rootDir>/apps/", "<rootDir>/libs/", "<rootDir>/test/"],
+  "moduleNameMapper": {
+    "^@core/common(|/.*)$": "<rootDir>/libs/core/common/src/$1",
+    "^@core/config(|/.*)$": "<rootDir>/libs/core/config/src/$1",
+    "^@core/database(|/.*)$": "<rootDir>/libs/core/database/src/$1",
+    "^@core/logger(|/.*)$": "<rootDir>/libs/core/logger/src/$1",
+    "^@core/request-context(|/.*)$": "<rootDir>/libs/core/request-context/src/$1",
+    "^@core/i18n(|/.*)$": "<rootDir>/libs/core/i18n/src/$1",
+    "^@platform/auth(|/.*)$": "<rootDir>/libs/platform/auth/src/$1",
+    "^@platform/security(|/.*)$": "<rootDir>/libs/platform/security/src/$1",
+    "^@platform/cache(|/.*)$": "<rootDir>/libs/platform/cache/src/$1",
+    "^@platform/queue(|/.*)$": "<rootDir>/libs/platform/queue/src/$1",
+    "^@platform/audit(|/.*)$": "<rootDir>/libs/platform/audit/src/$1",
+    "^@platform/task(|/.*)$": "<rootDir>/libs/platform/task/src/$1",
+    "^@platform/health(|/.*)$": "<rootDir>/libs/platform/health/src/$1",
+    "^@domains/identity(|/.*)$": "<rootDir>/libs/domains/identity/src/$1",
+    "^@domains/access-control(|/.*)$": "<rootDir>/libs/domains/access-control/src/$1",
+    "^@domains/system(|/.*)$": "<rootDir>/libs/domains/system/src/$1",
+    "^@integrations/sso(|/.*)$": "<rootDir>/libs/integrations/sso/src/$1"
+  }
+}

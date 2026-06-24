@@ -1,0 +1,34 @@
+{
+  "SYS_UNKNOWN": "System error, please try again later",
+  "SYS_INTERNAL": "Internal server error, please try again later",
+  "SYS_UNAVAILABLE": "Service temporarily unavailable, please try again later",
+  "SYS_TIMEOUT": "Request timed out, please try again later",
+
+  "REQ_VALIDATION_FAILED": "Request validation failed",
+  "REQ_INVALID_BODY": "Invalid request body format",
+  "REQ_MISSING_PARAM": "Required parameter is missing",
+  "REQ_INVALID_PARAM_TYPE": "Invalid parameter type",
+  "REQ_PARAM_INVALID": "Invalid parameter value",
+
+  "RES_NOT_FOUND": "Resource not found",
+  "RES_ALREADY_EXISTS": "Resource already exists",
+  "RES_CONFLICT": "Resource conflict",
+  "RES_DELETED": "Resource has been deleted",
+  "RES_IN_USE": "Resource is in use",
+
+  "OP_FAILED": "Operation failed",
+  "OP_NOT_ALLOWED": "Operation not allowed",
+  "OP_EXPIRED": "Operation has expired",
+
+  "AUTH_UNAUTHORIZED": "Unauthorized, please login first",
+  "AUTH_LOGIN_FAILED": "Login failed",
+  "AUTH_PASSWORD_INCORRECT": "Incorrect password",
+  "AUTH_USER_DISABLED": "User is disabled",
+  "AUTH_IP_BLOCKED": "IP address is blocked",
+  "AUTH_CODE_EXPIRED": "Verification code has expired",
+  "AUTH_CODE_INVALID": "Invalid verification code",
+  "AUTH_TOKEN_EXPIRED": "Token expired, please login again",
+  "AUTH_TOKEN_INVALID": "Invalid token",
+
+  "OPERATION_NOT_ALLOWED": "This operation is not allowed"
+}

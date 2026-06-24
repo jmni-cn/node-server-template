@@ -1,0 +1,112 @@
+# ============================================================
+# Development compose: MySQL + Redis + the three apps.
+#
+# Infra (mysql, redis) starts by default. Apps are gated behind the `apps`
+# profile so you can run only the infrastructure for local `npm run start:dev:*`,
+# or `--profile apps` to run everything in containers.
+#
+#   docker compose -f docker/docker-compose.dev.yml up -d            # infra only
+#   docker compose -f docker/docker-compose.dev.yml --profile apps up # everything
+# ============================================================
+name: node-server-template-dev
+
+services:
+  mysql:
+    image: mysql:8
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${DB_DATABASE:-app_template}
+      MYSQL_USER: ${DB_USERNAME:-app}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-app}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    ports:
+      - '3306:3306'
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-uroot', '-p${DB_ROOT_PASSWORD:-root}']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ['redis-server', '/usr/local/etc/redis/redis.conf']
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis-data:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  admin-api:
+    profiles: ['apps']
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.admin-api
+    restart: unless-stopped
+    env_file:
+      - ../.env.example
+      - ../.env.admin-api.example
+    environment:
+      DB_HOST: mysql
+      REDIS_HOST: redis
+    ports:
+      - '3001:3001'
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  user-api:
+    profiles: ['apps']
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.user-api
+    restart: unless-stopped
+    env_file:
+      - ../.env.example
+      - ../.env.user-api.example
+    environment:
+      DB_HOST: mysql
+      REDIS_HOST: redis
+    ports:
+      - '3002:3002'
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    profiles: ['apps']
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.worker
+    restart: unless-stopped
+    env_file:
+      - ../.env.example
+      - ../.env.worker.example
+    environment:
+      DB_HOST: mysql
+      REDIS_HOST: redis
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  mysql-data:
+  redis-data:
