@@ -32,7 +32,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     private readonly logger: LoggerService | null,
   ) {}
 
-  async catch(exception: unknown, host: ArgumentsHost): Promise<void> {
+  catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<FastifyReply>();
     const request = ctx.getRequest<FastifyRequest>();
@@ -47,7 +47,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       requestId;
     const lang = this.getLanguage(request);
 
-    let status = HttpStatus.INTERNAL_SERVER_ERROR;
+    let status: number = HttpStatus.INTERNAL_SERVER_ERROR;
     let errorCode: string = BaseErrorCode.SYS_UNKNOWN;
     let message = '';
     let details: unknown = null;
@@ -57,7 +57,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       status = exception.getStatus();
       errorCode = exception.getErrorCode();
       details = exception.getDetails();
-      message = await this.translateError(errorCode, lang);
+      message = this.translateError(errorCode, lang);
     } else if (exception instanceof HttpException) {
       // HTTP 异常
       status = exception.getStatus();
@@ -66,7 +66,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       if (status >= 500) {
         // 5xx 服务端错误：不暴露内部细节给前端，仅记录日志
         errorCode = BaseErrorCode.SYS_UNKNOWN;
-        message = await this.translateError(errorCode, lang);
+        message = this.translateError(errorCode, lang);
         this.logger?.error('Internal server error', exception);
       } else if (typeof exceptionResponse === 'string') {
         message = exceptionResponse;
@@ -75,7 +75,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
         // 处理 class-validator 验证错误
         if (Array.isArray(res.message)) {
           errorCode = BaseErrorCode.REQ_VALIDATION_FAILED;
-          message = await this.translateError(errorCode, lang);
+          message = this.translateError(errorCode, lang);
           details = res.message;
         } else {
           message = (res.message as string) || exception.message;
@@ -86,13 +86,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
       }
     } else if (exception instanceof Error) {
       // 其他错误：不暴露内部细节
-      message = await this.translateError(BaseErrorCode.SYS_UNKNOWN, lang);
+      message = this.translateError(BaseErrorCode.SYS_UNKNOWN, lang);
       this.logger?.error('Unhandled exception', exception);
     }
 
     // 默认消息
     if (!message) {
-      message = await this.translateError(errorCode, lang);
+      message = this.translateError(errorCode, lang);
     }
 
     /** 标准错误响应结构，包含 traceId 用于全链路追踪 */
@@ -138,12 +138,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
   /**
    * 翻译错误消息（i18n key：error.<CODE>）。
    */
-  private async translateError(code: string, lang: string): Promise<string> {
+  private translateError(code: string, lang: string): string {
     if (!this.i18n) {
       return code;
     }
     try {
-      const translated = await this.i18n.translate(`error.${code}`, { lang });
+      const translated = this.i18n.translate(`error.${code}`, { lang });
       return translated || code;
     } catch {
       return code;

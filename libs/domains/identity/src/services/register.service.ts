@@ -16,7 +16,7 @@ import { RegisterDto } from '../dto/register.dto';
 import { EndUserService } from './end-user.service';
 import { CredentialService } from './credential.service';
 
-const SUBJECT: 'user' = 'user';
+const SUBJECT = 'user' as const;
 
 @Injectable()
 export class RegisterService {

@@ -48,9 +48,18 @@ export class ProviderProfileNormalizerService {
       this.asString(raw.username) ??
       (email ? email.split('@')[0] : null);
 
+    // idCandidate 已校验非空；sub/id/user_id 在各 IdP 通常为 string 或 number。
+    // 用 typeof 收窄（而非类型断言）以同时满足 no-base-to-string 与 no-unnecessary-type-assertion。
+    const providerUserId =
+      typeof idCandidate === 'string'
+        ? idCandidate
+        : typeof idCandidate === 'number' || typeof idCandidate === 'bigint'
+          ? idCandidate.toString()
+          : JSON.stringify(idCandidate);
+
     return {
       provider,
-      providerUserId: String(idCandidate),
+      providerUserId,
       email,
       nickname,
       username,

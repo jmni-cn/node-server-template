@@ -71,13 +71,18 @@ function listTsFiles(dir: string, out: string[]): void {
     if (e.isDirectory()) {
       if (EXCLUDE_DIR_NAMES.has(e.name)) continue;
       listTsFiles(path.join(dir, e.name), out);
-    } else if (e.isFile() && e.name.endsWith('.ts') && !e.name.endsWith('.d.ts')) {
+    } else if (
+      e.isFile() &&
+      e.name.endsWith('.ts') &&
+      !e.name.endsWith('.d.ts')
+    ) {
       out.push(path.join(dir, e.name));
     }
   }
 }
 
-const IMPORT_RE = /(?:import\s[^'"]*from\s*|import\s*|require\s*\(\s*|export\s[^'"]*from\s*)['"]([^'"]+)['"]/g;
+const IMPORT_RE =
+  /(?:import\s[^'"]*from\s*|import\s*|require\s*\(\s*|export\s[^'"]*from\s*)['"]([^'"]+)['"]/g;
 
 // 角色后缀 -> 期望所在目录段。
 const DIR_RULES: Array<{ suffix: string; dir: string }> = [

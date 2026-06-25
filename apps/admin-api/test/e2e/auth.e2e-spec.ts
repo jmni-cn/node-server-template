@@ -43,7 +43,10 @@ describe.skip('Admin Auth (e2e)', () => {
       payload: adminLoginFixture,
     });
     expect(res.statusCode).toBe(201);
-    const body = res.json();
+    const body = res.json<{
+      success: boolean;
+      data: { accessToken?: string; refreshToken?: string };
+    }>();
     expect(body.success).toBe(true);
     expect(body.data.accessToken).toBeDefined();
     expect(body.data.refreshToken).toBeDefined();

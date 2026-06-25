@@ -22,7 +22,8 @@ type RuleModule = {
   create: (context: any) => Record<string, (node: any) => void>;
 };
 
-const VO_DTO_SUFFIX = /(Vo|Dto|Result|Response|Type|Enum|Status|Module|Service|Mapper|Assembler)$/;
+const VO_DTO_SUFFIX =
+  /(Vo|Dto|Result|Response|Type|Enum|Status|Module|Service|Mapper|Assembler)$/;
 
 function looksLikeEntity(name: string): boolean {
   // PascalCase 且不带已知非实体后缀。
@@ -32,13 +33,19 @@ function looksLikeEntity(name: string): boolean {
 /** 递归收集类型注解中引用的类型名。 */
 function collectTypeNames(typeNode: any, acc: Set<string>): void {
   if (!typeNode) return;
-  if (typeNode.type === 'TSTypeReference' && typeNode.typeName?.type === 'Identifier') {
+  if (
+    typeNode.type === 'TSTypeReference' &&
+    typeNode.typeName?.type === 'Identifier'
+  ) {
     acc.add(typeNode.typeName.name);
     const params = typeNode.typeParameters?.params ?? [];
     for (const p of params) collectTypeNames(p, acc);
   } else if (typeNode.type === 'TSArrayType') {
     collectTypeNames(typeNode.elementType, acc);
-  } else if (typeNode.type === 'TSUnionType' || typeNode.type === 'TSIntersectionType') {
+  } else if (
+    typeNode.type === 'TSUnionType' ||
+    typeNode.type === 'TSIntersectionType'
+  ) {
     for (const t of typeNode.types ?? []) collectTypeNames(t, acc);
   }
 }
@@ -46,7 +53,9 @@ function collectTypeNames(typeNode: any, acc: Set<string>): void {
 const rule: RuleModule = {
   meta: {
     type: 'problem',
-    docs: { description: '控制器方法不得返回 TypeORM 实体（应返回 VO 或 void）' },
+    docs: {
+      description: '控制器方法不得返回 TypeORM 实体（应返回 VO 或 void）',
+    },
     schema: [],
     messages: {
       entityReturned:
@@ -77,7 +86,11 @@ const rule: RuleModule = {
         collectTypeNames(returnType, names);
         for (const name of names) {
           if (suspectedEntities.has(name)) {
-            context.report({ node: node.key, messageId: 'entityReturned', data: { name } });
+            context.report({
+              node: node.key,
+              messageId: 'entityReturned',
+              data: { name },
+            });
           }
         }
       },
@@ -85,4 +98,4 @@ const rule: RuleModule = {
   },
 };
 
-export = rule;
+export default rule;

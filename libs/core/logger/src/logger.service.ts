@@ -6,7 +6,7 @@ import {
   Scope,
 } from '@nestjs/common';
 import { type ConfigType } from '@nestjs/config';
-import pino, { Logger, TransportTargetOptions } from 'pino';
+import pino, { Logger } from 'pino';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -59,8 +59,51 @@ export class LoggerService implements NestLoggerService, OnModuleInit {
     }
   }
 
+  /**
+   * 探测 pino-pretty 是否可用。
+   *
+   * pino-pretty 是 devDependency，生产镜像 `npm prune --omit=dev` 会裁剪掉它。
+   * 这里用**真实 require（try/catch）**而非 `require.resolve` 探测：
+   * require.resolve 可能在 webpack 构建期（此时 pino-pretty 仍存在）被静态内联，
+   * 导致运行时误判为可用。返回 pino-pretty 工厂函数或 null。
+   */
+  private static loadPinoPretty():
+    | ((opts: Record<string, unknown>) => NodeJS.WritableStream)
+    | null {
+    try {
+      // pino-pretty 已被 webpack-node-externals 外置，此处为运行时 require。
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      return require('pino-pretty') as (
+        opts: Record<string, unknown>,
+      ) => NodeJS.WritableStream;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * 构建 Pino 实例。
+   *
+   * 重要：本项目应用经 webpack 打包为单文件 main.js。pino 的 worker-thread
+   * transport（`transport.target` / `transport.targets`，包括 pino-pretty 与
+   * pino/file）会在独立工作线程中按模块名重新解析目标，在打包环境下无法解析，
+   * 抛 "unable to determine transport target"。因此这里一律使用**同线程 stream**：
+   * pino-pretty 作为函数返回 stream、文件用 pino.destination，再经 pino.multistream
+   * 组合，彻底规避 transport worker——无论是否打包、是否裁剪 devDependencies 均可用。
+   */
   private createLogger(): Logger {
     const config = this.config;
+    const prettyFactory = config.prettyPrint
+      ? LoggerService.loadPinoPretty()
+      : null;
+    const usePretty = prettyFactory !== null;
+
+    if (config.prettyPrint && !usePretty) {
+      // 显式声明 pretty 但模块缺失（典型：生产镜像）——回退 JSON 并提示一次。
+      console.warn(
+        '[LoggerService] LOG_PRETTY_PRINT=true 但未安装 pino-pretty，已回退为 JSON 输出。',
+      );
+    }
 
     const baseConfig: pino.LoggerOptions = {
       level: config.level,
@@ -69,73 +112,51 @@ export class LoggerService implements NestLoggerService, OnModuleInit {
         : false,
       base: this.getBaseFields(),
     };
+    // 纯 JSON 输出时把数字 level 序列化为可读 label；pretty 模式交给 pino-pretty 处理。
+    if (!usePretty) {
+      baseConfig.formatters = { level: (label) => ({ level: label }) };
+    }
 
+    const level = config.level as pino.Level;
+    const streams: pino.StreamEntry[] = [];
+
+    // 控制台输出：pretty（同线程 stream）或 JSON stdout。
+    if (usePretty && prettyFactory) {
+      streams.push({
+        level,
+        stream: prettyFactory({
+          colorize: true,
+          translateTime: 'SYS:standard',
+          ignore: this.getIgnoredFields(),
+        }),
+      });
+    } else {
+      streams.push({ level, stream: process.stdout });
+    }
+
+    // 文件输出：同线程 destination（避免 transport worker）。
     if (config.fileEnabled) {
-      const targets: TransportTargetOptions[] = [];
       const logDir = path.resolve(config.dir);
-
-      if (config.prettyPrint) {
-        targets.push({
-          target: 'pino-pretty',
-          options: {
-            colorize: true,
-            translateTime: 'SYS:standard',
-            ignore: this.getIgnoredFields(),
-          },
-          level: config.level,
-        });
-      } else {
-        targets.push({
-          target: 'pino/file',
-          options: { destination: 1 }, // stdout
-          level: config.level,
-        });
-      }
-
-      targets.push({
-        target: 'pino/file',
-        options: {
-          destination: path.join(logDir, config.appLogFile),
+      fs.mkdirSync(logDir, { recursive: true });
+      streams.push({
+        level,
+        stream: pino.destination({
+          dest: path.join(logDir, config.appLogFile),
           mkdir: true,
-        },
-        level: config.level,
+          sync: false,
+        }),
       });
-
-      targets.push({
-        target: 'pino/file',
-        options: {
-          destination: path.join(logDir, config.errorLogFile),
-          mkdir: true,
-        },
+      streams.push({
         level: 'error',
-      });
-
-      return pino({
-        ...baseConfig,
-        transport: { targets },
-      });
-    }
-
-    if (config.prettyPrint) {
-      return pino({
-        ...baseConfig,
-        transport: {
-          target: 'pino-pretty',
-          options: {
-            colorize: true,
-            translateTime: 'SYS:standard',
-            ignore: this.getIgnoredFields(),
-          },
-        },
+        stream: pino.destination({
+          dest: path.join(logDir, config.errorLogFile),
+          mkdir: true,
+          sync: false,
+        }),
       });
     }
 
-    return pino({
-      ...baseConfig,
-      formatters: {
-        level: (label) => ({ level: label }),
-      },
-    });
+    return pino(baseConfig, pino.multistream(streams, { dedupe: false }));
   }
 
   private getBaseFields(): Record<string, unknown> | undefined {

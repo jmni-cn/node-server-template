@@ -24,12 +24,15 @@ const defaults: Record<string, string> = {
   REDIS_PORT: '6379',
   REDIS_DB: '1',
 
-  JWT_SECRET: 'test-access-secret',
-  JWT_REFRESH_SECRET: 'test-refresh-secret',
+  // 必须与 @core/config 校验 schema 对齐：JWT_ACCESS_SECRET / JWT_REFRESH_SECRET
+  // 均要求至少 32 字符。
+  JWT_ACCESS_SECRET: 'test-access-secret-0123456789abcdef',
+  JWT_REFRESH_SECRET: 'test-refresh-secret-0123456789abcdef',
   JWT_ACCESS_EXPIRES_IN: '15m',
   JWT_REFRESH_EXPIRES_IN: '7d',
 
-  LOG_LEVEL: 'silent',
+  // LOG_LEVEL 合法值：trace|debug|info|warn|error|fatal（无 'silent'），测试用最安静的 fatal。
+  LOG_LEVEL: 'fatal',
   DEFAULT_LANGUAGE: 'zh-CN',
 };
 

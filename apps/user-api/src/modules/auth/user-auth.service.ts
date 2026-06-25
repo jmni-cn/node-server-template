@@ -21,7 +21,7 @@ import {
 } from '@domains/identity';
 
 /** 用户端主体类型（终端用户）。 */
-const SUBJECT: 'user' = 'user';
+const SUBJECT = 'user' as const;
 
 /** Access token 黑名单保留时长（7 天，单位：秒）。 */
 const BLACKLIST_TTL_SECONDS = 7 * 24 * 60 * 60;

@@ -44,7 +44,11 @@ function listTsFiles(dir: string, out: string[]): void {
     if (e.isDirectory()) {
       if (EXCLUDE_DIR_NAMES.has(e.name)) continue;
       listTsFiles(path.join(dir, e.name), out);
-    } else if (e.isFile() && e.name.endsWith('.ts') && !e.name.endsWith('.d.ts')) {
+    } else if (
+      e.isFile() &&
+      e.name.endsWith('.ts') &&
+      !e.name.endsWith('.d.ts')
+    ) {
       out.push(path.join(dir, e.name));
     }
   }
@@ -52,15 +56,25 @@ function listTsFiles(dir: string, out: string[]): void {
 
 // repository 使用模式。
 const REPO_PATTERNS: Array<{ rule: string; re: RegExp }> = [
-  { rule: 'repository-import', re: /import\s+[^;]*\bInjectRepository\b[^;]*from\s+['"]@nestjs\/typeorm['"]/ },
-  { rule: 'repository-import', re: /import\s+[^;]*\b(getRepository|getManager|getConnection)\b[^;]*from\s+['"]typeorm['"]/ },
-  { rule: 'repository-import', re: /import\s+[^;]*\bRepository\b[^;]*from\s+['"]typeorm['"]/ },
+  {
+    rule: 'repository-import',
+    re: /import\s+[^;]*\bInjectRepository\b[^;]*from\s+['"]@nestjs\/typeorm['"]/,
+  },
+  {
+    rule: 'repository-import',
+    re: /import\s+[^;]*\b(getRepository|getManager|getConnection)\b[^;]*from\s+['"]typeorm['"]/,
+  },
+  {
+    rule: 'repository-import',
+    re: /import\s+[^;]*\bRepository\b[^;]*from\s+['"]typeorm['"]/,
+  },
   { rule: 'repository-decorator', re: /@InjectRepository\s*\(/ },
   { rule: 'repository-call', re: /\bgetRepository\s*\(/ },
   { rule: 'repository-type', re: /\bRepository\s*</ },
 ];
 
-const IMPORT_RE = /(?:import\s[^'"]*from\s*|import\s*|require\s*\(\s*)['"]([^'"]+)['"]/g;
+const IMPORT_RE =
+  /(?:import\s[^'"]*from\s*|import\s*|require\s*\(\s*)['"]([^'"]+)['"]/g;
 
 function checkFile(file: string, violations: Violation[]): void {
   let content: string;
@@ -90,18 +104,28 @@ function checkFile(file: string, violations: Violation[]): void {
     while ((m = IMPORT_RE.exec(line)) !== null) {
       const spec = m[1];
       if (isCrossAppImport(file, app, spec)) {
-        violations.push({ file: rel, line: i + 1, rule: 'cross-app-import', text: line.trim() });
+        violations.push({
+          file: rel,
+          line: i + 1,
+          rule: 'cross-app-import',
+          text: line.trim(),
+        });
       }
     }
   }
 }
 
-function isCrossAppImport(file: string, app: string | null, spec: string): boolean {
+function isCrossAppImport(
+  file: string,
+  app: string | null,
+  spec: string,
+): boolean {
   if (!app) return false;
   const s = spec.replace(/\\/g, '/');
   // 相对路径：解析后判断目标 app。
   if (s.startsWith('.')) {
-    const resolved = path.resolve(path.dirname(file), s).replace(/\\/g, '/') + '/';
+    const resolved =
+      path.resolve(path.dirname(file), s).replace(/\\/g, '/') + '/';
     const target = appOf(resolved);
     return Boolean(target && target !== app);
   }

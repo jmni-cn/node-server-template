@@ -17,9 +17,8 @@ export class DataMaskingUtil {
    * 保留方案名，token 整体替换为 [REDACTED]。
    */
   private static readonly AUTH_HEADER_PATTERN =
-    /(authorization\s*[:=]\s*)(?:bearer\s+)?[A-Za-z0-9._~+\/=\-*]+/gi;
-  private static readonly BEARER_PATTERN =
-    /\bbearer\s+[A-Za-z0-9._~+\/=\-*]+/gi;
+    /(authorization\s*[:=]\s*)(?:bearer\s+)?[A-Za-z0-9._~+/=\-*]+/gi;
+  private static readonly BEARER_PATTERN = /\bbearer\s+[A-Za-z0-9._~+/=\-*]+/gi;
 
   /**
    * 形如 `"<field>":"<value>"`（JSON）或 `<field>=<value>` 的敏感字段，
@@ -282,7 +281,7 @@ export class DataMaskingUtil {
     if (data === null || data === undefined) return data;
     if (typeof data === 'string') return this.maskText(data) as T;
     if (Array.isArray(data))
-      return data.map((item) => this.maskRawData(item)) as T;
+      return (data as unknown[]).map((item) => this.maskRawData(item)) as T;
     if (typeof data === 'object') {
       const result = { ...data } as Record<string, unknown>;
       for (const key of Object.keys(result)) {

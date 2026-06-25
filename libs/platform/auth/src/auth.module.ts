@@ -12,7 +12,8 @@ import { RefreshJwtStrategy } from './strategies/refresh-jwt.strategy';
 import { AdminJwtAuthGuard } from './guards/admin-jwt-auth.guard';
 import { UserJwtAuthGuard } from './guards/user-jwt-auth.guard';
 import { RefreshJwtAuthGuard } from './guards/refresh-jwt-auth.guard';
-import { PermissionsGuard } from './guards/permissions.guard';
+// 注意：PermissionsGuard 不在此模块 providers/exports 中（见下方说明），
+// 它依赖 ACCESS_CHECKER（由应用提供），不能在 @platform/auth 上下文内被实例化。
 
 // 静态注册认证模块的错误码 → HTTP 状态映射（全局生效）。
 registerErrorCodeHttpStatus(AuthErrorCodeHttpStatus);
@@ -23,22 +24,13 @@ registerErrorCodeHttpStatus(AuthErrorCodeHttpStatus);
  * 提供 JWT 签发 / 校验、Token 黑名单、passport 策略（admin-jwt / user-jwt /
  * refresh-jwt）、认证守卫与 RBAC 权限守卫等共享认证基础设施。
  *
- * 【ACCESS_CHECKER 约定】
- * `PermissionsGuard` 依赖 `ACCESS_CHECKER` 端口判定权限，本模块**不**提供默认
- * 实现（否则会引入对 @domains 的依赖）。使用 `PermissionsGuard` 的应用必须自行
- * 提供实现：
+ * 【PermissionsGuard / ACCESS_CHECKER 约定】
+ * `PermissionsGuard` 依赖 `ACCESS_CHECKER` 端口判定权限。
  *
- * ```typescript
- * import { ACCESS_CHECKER, AuthModule } from '@platform/auth';
- *
- * @Module({
- *   imports: [AuthModule.forRoot()],
- *   providers: [
- *     { provide: ACCESS_CHECKER, useClass: MyRbacAccessChecker },
- *   ],
- * })
- * export class AppAuthModule {}
- * ```
+ * 正确用法：在**应用根模块**导入提供 `ACCESS_CHECKER` 的模块（如
+ * `@domains/access-control` 的 `AccessControlModule`，它 `{ provide: ACCESS_CHECKER,
+ * useExisting: AccessCheckService }` 并导出），再把 `PermissionsGuard` 注册为全局
+ * 守卫（在根上下文解析 ACCESS_CHECKER）：
  *
  * JwtModule 以空配置注册（密钥/过期时间在每次签名时按 jwtConfig 传入），
  * CacheModule 通常已在根模块以 @Global 方式导入，这里一并 import 以保证
@@ -59,7 +51,6 @@ export class AuthModule {
         AdminJwtAuthGuard,
         UserJwtAuthGuard,
         RefreshJwtAuthGuard,
-        PermissionsGuard,
       ],
       exports: [
         TokenService,
@@ -70,7 +61,6 @@ export class AuthModule {
         AdminJwtAuthGuard,
         UserJwtAuthGuard,
         RefreshJwtAuthGuard,
-        PermissionsGuard,
       ],
     };
   }

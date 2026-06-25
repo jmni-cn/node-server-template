@@ -1,7 +1,10 @@
 import { LoggerService } from '@core/logger';
 import type { SsoMicrosoftConfigType } from '@core/config';
 import { BaseSsoProvider } from './base.provider';
-import type { SsoTokenSet } from '../types/sso-provider.port';
+import type {
+  OAuth2TokenResponse,
+  SsoTokenSet,
+} from '../types/sso-provider.port';
 
 /** Microsoft Graph `/me` 响应（仅取归一化所需字段）。 */
 interface MicrosoftUserResponse {
@@ -67,17 +70,14 @@ export class MicrosoftSsoProvider extends BaseSsoProvider {
       redirect_uri: redirectUri ?? this.config.redirectUri,
       grant_type: 'authorization_code',
     });
-    const data = await this.httpPost<Record<string, unknown>>(
-      this.tokenUrl,
-      body,
-    );
+    const data = await this.httpPost<OAuth2TokenResponse>(this.tokenUrl, body);
     return {
-      accessToken: String(data.access_token ?? ''),
-      tokenType: data.token_type as string | undefined,
-      expiresIn: data.expires_in as number | undefined,
-      refreshToken: data.refresh_token as string | undefined,
-      idToken: data.id_token as string | undefined,
-      scope: data.scope as string | undefined,
+      accessToken: data.access_token ?? '',
+      tokenType: data.token_type,
+      expiresIn: data.expires_in,
+      refreshToken: data.refresh_token,
+      idToken: data.id_token,
+      scope: data.scope,
     };
   }
 

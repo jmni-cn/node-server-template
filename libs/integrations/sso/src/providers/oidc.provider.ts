@@ -5,6 +5,7 @@ import { BaseSsoProvider } from './base.provider';
 import type {
   BuildOidcAuthorizeUrlInput,
   ExchangeCodeForTokensInput,
+  OAuth2TokenResponse,
   SsoTokenSet,
   VerifiedIdTokenClaims,
   VerifyIdTokenInput,
@@ -153,17 +154,14 @@ export class OidcSsoProvider extends BaseSsoProvider {
     if (input.codeVerifier) {
       body.set('code_verifier', input.codeVerifier);
     }
-    const data = await this.httpPost<Record<string, unknown>>(
-      this.tokenUrl,
-      body,
-    );
+    const data = await this.httpPost<OAuth2TokenResponse>(this.tokenUrl, body);
     return {
-      accessToken: String(data.access_token ?? ''),
-      tokenType: data.token_type as string | undefined,
-      expiresIn: data.expires_in as number | undefined,
-      refreshToken: data.refresh_token as string | undefined,
-      idToken: data.id_token as string | undefined,
-      scope: data.scope as string | undefined,
+      accessToken: data.access_token ?? '',
+      tokenType: data.token_type,
+      expiresIn: data.expires_in,
+      refreshToken: data.refresh_token,
+      idToken: data.id_token,
+      scope: data.scope,
     };
   }
 

@@ -18,9 +18,11 @@ export class TaskCleanupProcessor {
     this.logger.setContext(TaskCleanupProcessor.name);
   }
 
-  async handle(data: BaseJobData): Promise<void> {
+  handle(data: BaseJobData): Promise<void> {
     this.logger.log('Task cleanup processed', {
       requestId: data.requestId ?? null,
     });
+    // 模板占位：真实清理逻辑接入后改回 async 并 await 对应服务。
+    return Promise.resolve();
   }
 }

@@ -3,7 +3,8 @@
  *
  * 统一响应 VO、分页、业务异常、错误码注册表、全局异常过滤器、
  * 响应转换/日志拦截器、Swagger 响应装饰器、@Public 装饰器、
- * 以及一组零依赖工具函数（uid / datetime / crypto / data-masking）。
+ * 以及一组零依赖工具函数
+ * （uid / datetime / crypto / random / data-masking / error-handling / object / async）。
  */
 
 // Utils
@@ -14,6 +15,8 @@ export * from './utils/security-masking.util';
 export * from './utils/datetime.util';
 export * from './utils/random.util';
 export * from './utils/error-handling.util';
+export * from './utils/object.util';
+export * from './utils/async.util';
 
 // Constants（错误码 + 可扩展 HTTP 状态注册表）
 export * from './constants';

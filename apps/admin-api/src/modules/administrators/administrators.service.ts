@@ -12,7 +12,7 @@ import { RoleService } from '@domains/access-control';
 import { CreateAdministratorDto, UpdateAdministratorDto } from './dto';
 
 /** 管理端主体类型（管理员）。 */
-const SUBJECT: 'admin' = 'admin';
+const SUBJECT = 'admin' as const;
 
 /**
  * 管理员账号应用服务。
@@ -62,9 +62,7 @@ export class AdministratorsService {
   }
 
   /** 管理员详情（含其角色 UID 列表）。 */
-  async detail(
-    uid: string,
-  ): Promise<AdminUserVo & { roleUids: string[] }> {
+  async detail(uid: string): Promise<AdminUserVo & { roleUids: string[] }> {
     const [vo, roleUids] = await Promise.all([
       this.adminUserService.getVo(uid),
       this.roleService.getRoleUidsForUser(uid),

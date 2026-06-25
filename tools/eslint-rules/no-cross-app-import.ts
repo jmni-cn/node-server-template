@@ -31,10 +31,14 @@ function currentApp(filename: string): string | null {
 const rule: RuleModule = {
   meta: {
     type: 'problem',
-    docs: { description: 'apps 之间禁止相互导入（admin-api / user-api / worker 相互隔离）' },
+    docs: {
+      description:
+        'apps 之间禁止相互导入（admin-api / user-api / worker 相互隔离）',
+    },
     schema: [],
     messages: {
-      crossApp: "禁止跨 app 导入：'{{importPath}}' 指向另一个 app（当前 app: {{app}}）。",
+      crossApp:
+        "禁止跨 app 导入：'{{importPath}}' 指向另一个 app（当前 app: {{app}}）。",
     },
   },
   create(context) {
@@ -53,7 +57,11 @@ const rule: RuleModule = {
           .replace(/\\/g, '/');
         const target = currentApp(resolved + '/');
         if (target && target !== app) {
-          context.report({ node, messageId: 'crossApp', data: { importPath, app } });
+          context.report({
+            node,
+            messageId: 'crossApp',
+            data: { importPath, app },
+          });
         }
         return;
       }
@@ -61,7 +69,11 @@ const rule: RuleModule = {
       // 2) 别名/裸路径：包含 apps/<other> 或 @<otherapp> 形式。
       const aliasMatch = normalized.match(/(?:^|\/)apps\/([^/]+)/);
       if (aliasMatch && aliasMatch[1] !== app) {
-        context.report({ node, messageId: 'crossApp', data: { importPath, app } });
+        context.report({
+          node,
+          messageId: 'crossApp',
+          data: { importPath, app },
+        });
       }
     }
 
@@ -71,7 +83,8 @@ const rule: RuleModule = {
       },
       // 动态 import('...') 与 require('...')
       ImportExpression(node: any) {
-        if (node.source?.type === 'Literal') check(node.source, node.source.value);
+        if (node.source?.type === 'Literal')
+          check(node.source, node.source.value);
       },
       CallExpression(node: any) {
         if (
@@ -85,4 +98,4 @@ const rule: RuleModule = {
   },
 };
 
-export = rule;
+export default rule;

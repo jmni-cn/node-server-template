@@ -39,7 +39,10 @@ describe.skip('User Auth (e2e)', () => {
       payload: registerFixture,
     });
     expect(res.statusCode).toBe(201);
-    const body = res.json();
+    const body = res.json<{
+      success: boolean;
+      data: { accessToken?: string };
+    }>();
     expect(body.success).toBe(true);
     expect(body.data.accessToken).toBeDefined();
   });

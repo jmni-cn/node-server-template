@@ -1,6 +1,9 @@
-import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
-import { BusinessException } from '@core/common';
+import {
+  BusinessException,
+  generateSecureToken,
+  generateLowercaseUid,
+} from '@core/common';
 import { LoggerService } from '@core/logger';
 import {
   QueueProducer,
@@ -206,7 +209,8 @@ export class SsoCallbackService {
       username: this.deriveUsername(profile),
       nickname: profile.nickname,
       email: profile.email ?? undefined,
-      password: randomUUID(),
+      // SSO 用户不走密码登录，这里仅生成一个高熵占位密码（加密安全随机）。
+      password: generateSecureToken(32),
     });
     await this.link('user', created.uid, profile);
     return {
@@ -276,7 +280,7 @@ export class SsoCallbackService {
       .replace(/[^a-z0-9_]+/g, '_')
       .replace(/^_+|_+$/g, '')
       .slice(0, 24);
-    const suffix = randomUUID().replace(/-/g, '').slice(0, 6);
+    const suffix = generateLowercaseUid(6);
     const prefix = sanitized.length > 0 ? sanitized : 'sso';
     return `${prefix}_${suffix}`;
   }

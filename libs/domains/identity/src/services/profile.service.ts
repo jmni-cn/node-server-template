@@ -23,7 +23,7 @@ import { SessionService } from './session.service';
 import { SecurityEventService } from './security-event.service';
 import { IdentityErrorCode } from '../constants/identity-error-codes';
 
-const SUBJECT: 'user' = 'user';
+const SUBJECT = 'user' as const;
 
 @Injectable()
 export class ProfileService {

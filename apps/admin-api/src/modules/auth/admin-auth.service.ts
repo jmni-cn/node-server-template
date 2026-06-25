@@ -21,7 +21,7 @@ import { RoleService } from '@domains/access-control';
 import { AdminLoginDto } from './dto';
 
 /** 管理端主体类型（管理员）。 */
-const SUBJECT: 'admin' = 'admin';
+const SUBJECT = 'admin' as const;
 
 /** Access token 黑名单保留时长（7 天，单位：秒）。 */
 const BLACKLIST_TTL_SECONDS = 7 * 24 * 60 * 60;

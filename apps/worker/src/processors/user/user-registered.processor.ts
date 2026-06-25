@@ -37,14 +37,17 @@ export class UserRegisteredProcessor extends BaseQueueProcessor {
     this.logger.setContext(UserRegisteredProcessor.name);
   }
 
-  private async onRegistered(data: UserEventJobData): Promise<void> {
+  private onRegistered(data: UserEventJobData): Promise<void> {
     this.logger.log('User registered event processed', {
       sub: data.sub,
       username: data.username,
     });
+    // 模板占位：开户后续（欢迎通知/初始化等）接入后改回 async 并 await。
+    return Promise.resolve();
   }
 
-  private async onPasswordChanged(data: UserEventJobData): Promise<void> {
+  private onPasswordChanged(data: UserEventJobData): Promise<void> {
     this.logger.log('Password changed event processed', { sub: data.sub });
+    return Promise.resolve();
   }
 }

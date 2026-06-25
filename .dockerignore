@@ -2,13 +2,13 @@ node_modules
 dist
 coverage
 logs
+# 注意：不要忽略 test/ 与 *.spec / *.e2e-spec 源码——
+# docker-compose.test.yml 的 test 阶段需要它们跑 e2e。
+# 生产 runtime 阶段只 COPY dist + 生产 node_modules，故这些测试文件不会进入生产镜像。
 .git
 .github
 .vscode
 .cursor
-**/*.spec.ts
-**/*.e2e-spec.ts
 .env
 env/
-test
 references

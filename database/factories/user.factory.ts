@@ -2,12 +2,12 @@
  * user.factory — 测试用主体工厂（EndUser / AdminUser / UserProfile / UserCredential）。
  *
  * 返回部分实体（DeepPartial），由调用方通过 repository.create+save 落库。
- * 字段随机化使用 nanoid，避免唯一约束冲突。
+ * 字段随机化复用 @core/common 的 ID 生成器，避免唯一约束冲突。
  *
  * 注意：工厂不依赖 DataSource，纯函数，便于在单元/集成测试中复用。
  * identity 域已拆分为 AdminUser / EndUser，故不再存在 `User` 实体。
  */
-import { customAlphabet } from 'nanoid';
+import { generateLowercaseUid, generateNumericCode } from '@core/common';
 import type { DeepPartial } from 'typeorm';
 import {
   AdminUser,
@@ -18,8 +18,8 @@ import {
   Gender,
 } from '@domains/identity';
 
-const slug = customAlphabet('abcdefghijklmnopqrstuvwxyz0123456789', 8);
-const digits = customAlphabet('0123456789', 8);
+const slug = () => generateLowercaseUid(8);
+const digits = () => generateNumericCode(8);
 
 /** 生成一个随机 EndUser 的部分属性。 */
 export function endUserFactory(

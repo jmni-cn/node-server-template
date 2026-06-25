@@ -22,7 +22,7 @@ import { SessionService } from './session.service';
 import { SecurityEventService } from './security-event.service';
 import { IdentityErrorCode } from '../constants/identity-error-codes';
 
-const SUBJECT: 'admin' = 'admin';
+const SUBJECT = 'admin' as const;
 
 @Injectable()
 export class AdminUserService {
@@ -55,7 +55,11 @@ export class AdminUserService {
         status: UserStatus.ACTIVE,
       }),
     );
-    await this.credentialService.setPassword(SUBJECT, admin.uid, input.password);
+    await this.credentialService.setPassword(
+      SUBJECT,
+      admin.uid,
+      input.password,
+    );
     return admin;
   }
 
@@ -138,7 +142,11 @@ export class AdminUserService {
     if (!matched) {
       throw new BusinessException(IdentityErrorCode.USER_PASSWORD_INCORRECT);
     }
-    await this.credentialService.setPassword(SUBJECT, admin.uid, dto.newPassword);
+    await this.credentialService.setPassword(
+      SUBJECT,
+      admin.uid,
+      dto.newPassword,
+    );
     await this.adminUserRepository.increment({ uid }, 'passwordVersion', 1);
     await this.sessionService.revokeAllForUser(
       SUBJECT,

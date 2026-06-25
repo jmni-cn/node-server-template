@@ -1,4 +1,4 @@
-import { Injectable, CanActivate, type ExecutionContext } from '@nestjs/common';
+import { Injectable, CanActivate } from '@nestjs/common';
 import { BusinessException } from '@core/common';
 import { RequestContextService } from '@core/request-context';
 import { SecurityErrorCode } from '../constants/security-error-codes';
@@ -14,7 +14,7 @@ import { IpBlacklistService } from './ip-blacklist.service';
 export class IpBlacklistGuard implements CanActivate {
   constructor(private readonly ipBlacklistService: IpBlacklistService) {}
 
-  async canActivate(_context: ExecutionContext): Promise<boolean> {
+  async canActivate(): Promise<boolean> {
     const ip = RequestContextService.getIp() ?? '';
 
     if (ip && (await this.ipBlacklistService.isBlocked(ip))) {

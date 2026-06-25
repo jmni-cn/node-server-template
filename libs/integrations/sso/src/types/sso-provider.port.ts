@@ -19,6 +19,22 @@ export interface NormalizedProfile {
 }
 
 /**
+ * OAuth2 / OIDC token endpoint 原始响应（RFC 6749 §5.1 + OIDC `id_token` 扩展）。
+ *
+ * 字段均为可选：成功响应理应包含 `access_token`，但保留可选以对异常 provider 做防御；
+ * 索引签名允许携带未建模的扩展字段（如 Microsoft 的 `ext_expires_in`）。
+ */
+export interface OAuth2TokenResponse {
+  access_token?: string;
+  token_type?: string;
+  expires_in?: number;
+  refresh_token?: string;
+  id_token?: string;
+  scope?: string;
+  [key: string]: unknown;
+}
+
+/**
  * Token 交换结果（OAuth2 token endpoint 响应归一化）。
  */
 export interface SsoTokenSet {

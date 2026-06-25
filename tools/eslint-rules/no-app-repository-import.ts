@@ -28,7 +28,10 @@ const FORBIDDEN: Record<string, string[]> = {
 const rule: RuleModule = {
   meta: {
     type: 'problem',
-    docs: { description: '禁止在 apps/ 中直接导入/使用 TypeORM repository（应调用域/平台 service）' },
+    docs: {
+      description:
+        '禁止在 apps/ 中直接导入/使用 TypeORM repository（应调用域/平台 service）',
+    },
     schema: [],
     messages: {
       forbidden:
@@ -49,7 +52,11 @@ const rule: RuleModule = {
         for (const spec of node.specifiers ?? []) {
           const name = spec.imported?.name ?? spec.local?.name;
           if (name && banned.includes(name)) {
-            context.report({ node: spec, messageId: 'forbidden', data: { name, source } });
+            context.report({
+              node: spec,
+              messageId: 'forbidden',
+              data: { name, source },
+            });
           }
         }
       },
@@ -57,4 +64,4 @@ const rule: RuleModule = {
   },
 };
 
-export = rule;
+export default rule;

@@ -22,5 +22,7 @@ export class UserLoginProcessor {
       sub: data.sub,
       username: data.username,
     });
+    // 模板占位：真实副作用（审计/风控/设备记录）接入后改回 async 并 await。
+    return await Promise.resolve();
   }
 }
