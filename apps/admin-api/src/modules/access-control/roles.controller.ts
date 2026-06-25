@@ -31,12 +31,12 @@ import {
 /** 管理后台角色管理控制器。 */
 @ApiTags('角色管理')
 @ApiBearerAuth('bearer')
-@Permissions('rbac:role:*')
 @Controller('roles')
 export class RolesController {
   constructor(private readonly roleService: RoleService) {}
 
   @Get()
+  @Permissions('rbac:role:read')
   @ApiOperation({ summary: '角色列表（分页）' })
   @ApiPaginatedResponse(RoleVo)
   list(@Query() dto: ListRoleDto): Promise<PageResultVo<RoleVo>> {
@@ -44,6 +44,7 @@ export class RolesController {
   }
 
   @Get(':uid')
+  @Permissions('rbac:role:read')
   @ApiOperation({ summary: '角色详情' })
   @ApiBaseResponse(RoleDetailVo)
   detail(@Param('uid') uid: string): Promise<RoleDetailVo> {
@@ -51,6 +52,7 @@ export class RolesController {
   }
 
   @Post()
+  @Permissions('rbac:role:create')
   @ApiOperation({ summary: '创建角色' })
   @OperationLogDecorator({ action: 'CREATE_ROLE', module: 'Roles' })
   @ApiBaseResponse(RoleVo)
@@ -59,6 +61,7 @@ export class RolesController {
   }
 
   @Patch(':uid')
+  @Permissions('rbac:role:update')
   @ApiOperation({ summary: '更新角色' })
   @OperationLogDecorator({ action: 'UPDATE_ROLE', module: 'Roles' })
   @ApiBaseResponse(RoleVo)
@@ -70,6 +73,7 @@ export class RolesController {
   }
 
   @Delete(':uid')
+  @Permissions('rbac:role:delete')
   @ApiOperation({ summary: '删除角色' })
   @OperationLogDecorator({ action: 'DELETE_ROLE', module: 'Roles' })
   @ApiSuccessResponse()
@@ -78,6 +82,7 @@ export class RolesController {
   }
 
   @Post(':uid/permissions')
+  @Permissions('rbac:role:assign-permission')
   @ApiOperation({ summary: '分配权限' })
   @OperationLogDecorator({ action: 'ASSIGN_ROLE_PERMISSIONS', module: 'Roles' })
   @ApiSuccessResponse()
@@ -89,6 +94,7 @@ export class RolesController {
   }
 
   @Post(':uid/menus')
+  @Permissions('rbac:role:assign-menu')
   @ApiOperation({ summary: '分配菜单' })
   @OperationLogDecorator({ action: 'ASSIGN_ROLE_MENUS', module: 'Roles' })
   @ApiSuccessResponse()

@@ -23,45 +23,69 @@ interface PermissionSeed {
   group: string;
 }
 
+/**
+ * 权限点清单 —— 与 apps/admin-api 各 Controller 的 `@Permissions()` 逐一对应。
+ *
+ * 命名约定：`<资源>:<动作>`，动作可带连字符（如 assign-role）。
+ * AccessCheckService 为精确匹配（无通配符展开），因此 Controller 标注的每个
+ * 权限码都必须在此登记，否则除非角色显式绑定该码，接口将拒绝访问。
+ *
+ * 标注 [未接线] 的为标准 CRUD 目录项，当前尚无对应端点，预留给后续接口。
+ */
 export const PERMISSION_SEEDS: PermissionSeed[] = [
-  // RBAC — 终端用户（end_users）
+  // RBAC — 终端用户（/admin/users）
   { code: 'rbac:user:read', name: '用户-查看', group: 'rbac' },
-  { code: 'rbac:user:create', name: '用户-创建', group: 'rbac' },
+  { code: 'rbac:user:create', name: '用户-创建', group: 'rbac' }, // [未接线]
   { code: 'rbac:user:update', name: '用户-更新', group: 'rbac' },
-  { code: 'rbac:user:delete', name: '用户-删除', group: 'rbac' },
-  // RBAC — 管理员（admin_users）
+  { code: 'rbac:user:delete', name: '用户-删除', group: 'rbac' }, // [未接线]
+  // RBAC — 管理员（/admin/administrators）
   { code: 'rbac:admin:read', name: '管理员-查看', group: 'rbac' },
   { code: 'rbac:admin:create', name: '管理员-创建', group: 'rbac' },
   { code: 'rbac:admin:update', name: '管理员-更新', group: 'rbac' },
-  { code: 'rbac:admin:delete', name: '管理员-删除', group: 'rbac' },
-  // RBAC — 角色
+  { code: 'rbac:admin:delete', name: '管理员-删除', group: 'rbac' }, // [未接线]
+  { code: 'rbac:admin:assign-role', name: '管理员-分配角色', group: 'rbac' },
+  {
+    code: 'rbac:admin:reset-password',
+    name: '管理员-重置密码',
+    group: 'rbac',
+  },
+  // RBAC — 角色（/admin/roles）
   { code: 'rbac:role:read', name: '角色-查看', group: 'rbac' },
   { code: 'rbac:role:create', name: '角色-创建', group: 'rbac' },
   { code: 'rbac:role:update', name: '角色-更新', group: 'rbac' },
   { code: 'rbac:role:delete', name: '角色-删除', group: 'rbac' },
-  // RBAC — 权限
+  {
+    code: 'rbac:role:assign-permission',
+    name: '角色-分配权限',
+    group: 'rbac',
+  },
+  { code: 'rbac:role:assign-menu', name: '角色-分配菜单', group: 'rbac' },
+  // RBAC — 权限（/admin/permissions）
   { code: 'rbac:permission:read', name: '权限-查看', group: 'rbac' },
   { code: 'rbac:permission:create', name: '权限-创建', group: 'rbac' },
   { code: 'rbac:permission:update', name: '权限-更新', group: 'rbac' },
-  { code: 'rbac:permission:delete', name: '权限-删除', group: 'rbac' },
-  // RBAC — 菜单
+  { code: 'rbac:permission:delete', name: '权限-删除', group: 'rbac' }, // [未接线]
+  // RBAC — 菜单（/admin/menus）
   { code: 'rbac:menu:read', name: '菜单-查看', group: 'rbac' },
   { code: 'rbac:menu:create', name: '菜单-创建', group: 'rbac' },
   { code: 'rbac:menu:update', name: '菜单-更新', group: 'rbac' },
   { code: 'rbac:menu:delete', name: '菜单-删除', group: 'rbac' },
-  // 系统配置
+  // 系统配置（/admin/system-configs）
   { code: 'sys:config:read', name: '系统配置-查看', group: 'system' },
-  { code: 'sys:config:create', name: '系统配置-创建', group: 'system' },
-  { code: 'sys:config:update', name: '系统配置-更新', group: 'system' },
+  { code: 'sys:config:create', name: '系统配置-创建', group: 'system' }, // [未接线] set 端点用 update
+  { code: 'sys:config:update', name: '系统配置-设置', group: 'system' },
   { code: 'sys:config:delete', name: '系统配置-删除', group: 'system' },
-  // 字典
+  // 字典（/admin/dictionaries，含字典项）
   { code: 'sys:dict:read', name: '字典-查看', group: 'system' },
   { code: 'sys:dict:create', name: '字典-创建', group: 'system' },
   { code: 'sys:dict:update', name: '字典-更新', group: 'system' },
-  { code: 'sys:dict:delete', name: '字典-删除', group: 'system' },
-  // 审计 / 任务
+  { code: 'sys:dict:delete', name: '字典-删除', group: 'system' }, // [未接线]
+  // 审计（/admin/operation-logs）
   { code: 'audit:log:read', name: '操作日志-查看', group: 'audit' },
-  { code: 'task:manage', name: '任务-管理', group: 'task' },
+  // 任务（/admin/tasks）
+  { code: 'task:read', name: '任务-查看', group: 'task' },
+  { code: 'task:retry', name: '任务-重试', group: 'task' },
+  { code: 'task:trigger', name: '任务-触发', group: 'task' },
 ];
 
 /** 基础角色定义。code 为唯一键。 */
@@ -84,7 +108,7 @@ export const ROLE_SEEDS: Record<'SUPER_ADMIN' | 'ADMIN', RoleSeed> = {
   },
 };
 
-/** ADMIN 角色的基础权限集合（只读 + 任务管理）。 */
+/** ADMIN 角色的基础权限集合（各资源只读 + 任务查看）。 */
 const ADMIN_PERMISSION_CODES = [
   'rbac:user:read',
   'rbac:admin:read',
@@ -94,7 +118,7 @@ const ADMIN_PERMISSION_CODES = [
   'sys:config:read',
   'sys:dict:read',
   'audit:log:read',
-  'task:manage',
+  'task:read',
 ];
 
 /** 基础菜单树定义（以临时 key 构建父子关系）。 */

@@ -17,12 +17,12 @@ import {
 /** 管理后台字典管理控制器。 */
 @ApiTags('字典管理')
 @ApiBearerAuth('bearer')
-@Permissions('sys:dict:*')
 @Controller('dictionaries')
 export class DictionariesController {
   constructor(private readonly dictionaryService: DictionaryService) {}
 
   @Get(':uid')
+  @Permissions('sys:dict:read')
   @ApiOperation({ summary: '字典详情' })
   @ApiBaseResponse(DictionaryDetailVo)
   detail(@Param('uid') uid: string): Promise<DictionaryDetailVo> {
@@ -30,6 +30,7 @@ export class DictionariesController {
   }
 
   @Get('code/:code/items')
+  @Permissions('sys:dict:read')
   @ApiOperation({ summary: '按字典编码取字典项' })
   @ApiArrayResponse(DictionaryItemVo)
   itemsByCode(@Param('code') code: string): Promise<DictionaryItemVo[]> {
@@ -37,6 +38,7 @@ export class DictionariesController {
   }
 
   @Post()
+  @Permissions('sys:dict:create')
   @ApiOperation({ summary: '创建字典' })
   @OperationLogDecorator({ action: 'CREATE_DICT', module: 'Dictionaries' })
   @ApiBaseResponse(DictionaryVo)
@@ -45,6 +47,7 @@ export class DictionariesController {
   }
 
   @Patch(':uid')
+  @Permissions('sys:dict:update')
   @ApiOperation({ summary: '更新字典' })
   @OperationLogDecorator({ action: 'UPDATE_DICT', module: 'Dictionaries' })
   @ApiBaseResponse(DictionaryVo)
@@ -56,6 +59,7 @@ export class DictionariesController {
   }
 
   @Post('items')
+  @Permissions('sys:dict:create')
   @ApiOperation({ summary: '新增字典项' })
   @OperationLogDecorator({ action: 'CREATE_DICT_ITEM', module: 'Dictionaries' })
   @ApiBaseResponse(DictionaryItemVo)
@@ -64,6 +68,7 @@ export class DictionariesController {
   }
 
   @Patch('items/:uid')
+  @Permissions('sys:dict:update')
   @ApiOperation({ summary: '更新字典项' })
   @OperationLogDecorator({ action: 'UPDATE_DICT_ITEM', module: 'Dictionaries' })
   @ApiBaseResponse(DictionaryItemVo)

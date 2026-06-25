@@ -27,12 +27,12 @@ import {
 /** 管理后台系统配置控制器。 */
 @ApiTags('系统配置')
 @ApiBearerAuth('bearer')
-@Permissions('sys:config:*')
 @Controller('system-configs')
 export class SystemConfigsController {
   constructor(private readonly systemConfigService: SystemConfigService) {}
 
   @Get()
+  @Permissions('sys:config:read')
   @ApiOperation({ summary: '系统配置列表（分页）' })
   @ApiPaginatedResponse(SystemConfigVo)
   list(@Query() dto: QueryConfigDto): Promise<PageResultVo<SystemConfigVo>> {
@@ -40,6 +40,7 @@ export class SystemConfigsController {
   }
 
   @Get('group/:group')
+  @Permissions('sys:config:read')
   @ApiOperation({ summary: '按分组取配置' })
   @ApiArrayResponse(SystemConfigVo)
   byGroup(@Param('group') group: string): Promise<SystemConfigVo[]> {
@@ -47,6 +48,7 @@ export class SystemConfigsController {
   }
 
   @Post()
+  @Permissions('sys:config:update')
   @ApiOperation({ summary: '设置（创建/更新）配置' })
   @OperationLogDecorator({ action: 'SET_CONFIG', module: 'SystemConfigs' })
   @ApiBaseResponse(SystemConfigVo)
@@ -55,6 +57,7 @@ export class SystemConfigsController {
   }
 
   @Delete(':key')
+  @Permissions('sys:config:delete')
   @ApiOperation({ summary: '删除配置' })
   @OperationLogDecorator({ action: 'DELETE_CONFIG', module: 'SystemConfigs' })
   @ApiSuccessResponse()

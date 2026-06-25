@@ -22,7 +22,6 @@ import {
 /** 管理后台任务管理控制器。 */
 @ApiTags('任务管理')
 @ApiBearerAuth('bearer')
-@Permissions('sys:task:*')
 @Controller('tasks')
 export class TasksController {
   constructor(
@@ -32,6 +31,7 @@ export class TasksController {
   ) {}
 
   @Get()
+  @Permissions('task:read')
   @ApiOperation({ summary: '任务列表（分页）' })
   @ApiPaginatedResponse(TaskListItemVo)
   list(@Query() dto: QueryTaskDto): Promise<PageResultVo<TaskListItemVo>> {
@@ -39,6 +39,7 @@ export class TasksController {
   }
 
   @Get(':uid')
+  @Permissions('task:read')
   @ApiOperation({ summary: '任务详情' })
   @ApiBaseResponse(TaskVo)
   async detail(@Param('uid') uid: string): Promise<TaskVo> {
@@ -47,6 +48,7 @@ export class TasksController {
   }
 
   @Get(':uid/logs')
+  @Permissions('task:read')
   @ApiOperation({ summary: '任务执行日志' })
   @ApiArrayResponse(Object)
   getLogs(@Param('uid') uid: string): Promise<unknown[]> {
@@ -54,6 +56,7 @@ export class TasksController {
   }
 
   @Post(':uid/retry')
+  @Permissions('task:retry')
   @ApiOperation({ summary: '重试失败任务' })
   @OperationLogDecorator({ action: 'RETRY_TASK', module: 'Tasks' })
   @ApiBaseResponse(TaskVo)
@@ -63,6 +66,7 @@ export class TasksController {
   }
 
   @Post('trigger')
+  @Permissions('task:trigger')
   @ApiOperation({ summary: '手动触发任务（创建并入队）' })
   @OperationLogDecorator({ action: 'TRIGGER_TASK', module: 'Tasks' })
   @ApiBaseResponse(TaskVo)

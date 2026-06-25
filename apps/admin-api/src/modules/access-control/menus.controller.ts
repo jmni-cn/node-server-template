@@ -26,12 +26,12 @@ import {
 /** 管理后台菜单管理控制器。 */
 @ApiTags('菜单管理')
 @ApiBearerAuth('bearer')
-@Permissions('rbac:menu:*')
 @Controller('menus')
 export class MenusController {
   constructor(private readonly menuService: MenuService) {}
 
   @Get('tree')
+  @Permissions('rbac:menu:read')
   @ApiOperation({ summary: '菜单树' })
   @ApiArrayResponse(MenuTreeVo)
   tree(): Promise<MenuTreeVo[]> {
@@ -39,6 +39,7 @@ export class MenusController {
   }
 
   @Post()
+  @Permissions('rbac:menu:create')
   @ApiOperation({ summary: '创建菜单' })
   @OperationLogDecorator({ action: 'CREATE_MENU', module: 'Menus' })
   @ApiBaseResponse(MenuVo)
@@ -47,6 +48,7 @@ export class MenusController {
   }
 
   @Patch(':uid')
+  @Permissions('rbac:menu:update')
   @ApiOperation({ summary: '更新菜单' })
   @OperationLogDecorator({ action: 'UPDATE_MENU', module: 'Menus' })
   @ApiBaseResponse(MenuVo)
@@ -58,6 +60,7 @@ export class MenusController {
   }
 
   @Delete(':uid')
+  @Permissions('rbac:menu:delete')
   @ApiOperation({ summary: '删除菜单' })
   @OperationLogDecorator({ action: 'DELETE_MENU', module: 'Menus' })
   @ApiSuccessResponse()

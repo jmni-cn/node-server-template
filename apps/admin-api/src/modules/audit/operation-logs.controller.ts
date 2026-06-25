@@ -16,7 +16,7 @@ import {
 /** 管理后台操作日志（审计）查询控制器。只读，无写操作。 */
 @ApiTags('操作日志')
 @ApiBearerAuth('bearer')
-@Permissions('sys:audit:read')
+@Permissions('audit:log:read')
 @Controller('operation-logs')
 export class OperationLogsController {
   constructor(private readonly queryService: OperationLogQueryService) {}

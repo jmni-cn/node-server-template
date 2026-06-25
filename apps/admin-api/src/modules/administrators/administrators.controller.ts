@@ -33,17 +33,17 @@ import { AdministratorsService } from './administrators.service';
  * 管理员账号管理控制器（`/admin/administrators`）。
  *
  * 管理的是「管理员账号」（AdminUser / admin_users 表），与终端用户管理
- * （`/admin/users`）严格分离。全部端点要求 `rbac:admin:*` 权限；写操作记录操作日志。
- * 控制器保持轻薄：跨服务编排在 {@link AdministratorsService}。
+ * （`/admin/users`）严格分离。各端点按操作细分 `rbac:admin:*` 权限点；
+ * 写操作记录操作日志。控制器保持轻薄：跨服务编排在 {@link AdministratorsService}。
  */
 @ApiTags('管理员管理')
 @ApiBearerAuth('bearer')
-@Permissions('rbac:admin:*')
 @Controller('administrators')
 export class AdministratorsController {
   constructor(private readonly administratorsService: AdministratorsService) {}
 
   @Get()
+  @Permissions('rbac:admin:read')
   @ApiOperation({ summary: '管理员列表（分页）' })
   @ApiPaginatedResponse(AdminUserVo)
   list(@Query() dto: PaginationDto): Promise<PageResultVo<AdminUserVo>> {
@@ -51,6 +51,7 @@ export class AdministratorsController {
   }
 
   @Get(':uid')
+  @Permissions('rbac:admin:read')
   @ApiOperation({ summary: '管理员详情（含角色）' })
   @ApiBaseResponse(AdministratorDetailVo)
   detail(@Param('uid') uid: string): Promise<AdministratorDetailVo> {
@@ -58,6 +59,7 @@ export class AdministratorsController {
   }
 
   @Post()
+  @Permissions('rbac:admin:create')
   @ApiOperation({ summary: '创建管理员' })
   @OperationLogDecorator({ action: 'CREATE_ADMIN', module: 'Administrators' })
   @ApiBaseResponse(AdminUserVo)
@@ -66,6 +68,7 @@ export class AdministratorsController {
   }
 
   @Patch(':uid')
+  @Permissions('rbac:admin:update')
   @ApiOperation({ summary: '更新管理员（含禁用/启用）' })
   @OperationLogDecorator({ action: 'UPDATE_ADMIN', module: 'Administrators' })
   @ApiBaseResponse(AdminUserVo)
@@ -77,6 +80,7 @@ export class AdministratorsController {
   }
 
   @Put(':uid/roles')
+  @Permissions('rbac:admin:assign-role')
   @ApiOperation({ summary: '分配管理员角色（全量替换）' })
   @OperationLogDecorator({
     action: 'ASSIGN_ADMIN_ROLES',
@@ -91,6 +95,7 @@ export class AdministratorsController {
   }
 
   @Put(':uid/password')
+  @Permissions('rbac:admin:reset-password')
   @ApiOperation({ summary: '重置管理员密码（吊销其全部会话）' })
   @OperationLogDecorator({
     action: 'RESET_ADMIN_PASSWORD',

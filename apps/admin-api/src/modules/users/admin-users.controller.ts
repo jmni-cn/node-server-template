@@ -21,17 +21,17 @@ import {
  * 管理的是终端用户（EndUser，end_users 表），用于后台查看/检索/更新（含禁用）
  * 终端用户。管理员账号本身在 `/admin/administrators` 管理。
  *
- * 全部端点要求 `rbac:user:*` 权限；写操作记录操作日志。控制器仅做参数透传与
- * VO 返回，业务逻辑在 {@link EndUserService}。
+ * 各端点按操作细分 `rbac:user:*` 权限点；写操作记录操作日志。控制器仅做参数
+ * 透传与 VO 返回，业务逻辑在 {@link EndUserService}。
  */
 @ApiTags('用户管理')
 @ApiBearerAuth('bearer')
-@Permissions('rbac:user:*')
 @Controller('users')
 export class AdminUsersController {
   constructor(private readonly endUserService: EndUserService) {}
 
   @Get()
+  @Permissions('rbac:user:read')
   @ApiOperation({ summary: '终端用户列表（分页）' })
   @ApiPaginatedResponse(EndUserVo)
   list(@Query() dto: ListUserDto): Promise<PageResultVo<EndUserVo>> {
@@ -39,6 +39,7 @@ export class AdminUsersController {
   }
 
   @Get(':uid')
+  @Permissions('rbac:user:read')
   @ApiOperation({ summary: '终端用户详情' })
   @ApiBaseResponse(EndUserDetailVo)
   detail(@Param('uid') uid: string): Promise<EndUserDetailVo> {
@@ -46,6 +47,7 @@ export class AdminUsersController {
   }
 
   @Patch(':uid')
+  @Permissions('rbac:user:update')
   @ApiOperation({ summary: '更新终端用户（含禁用/启用）' })
   @OperationLogDecorator({ action: 'UPDATE_USER', module: 'Users' })
   @ApiBaseResponse(EndUserVo)

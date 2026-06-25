@@ -28,12 +28,12 @@ import {
 /** 管理后台权限管理控制器。 */
 @ApiTags('权限管理')
 @ApiBearerAuth('bearer')
-@Permissions('rbac:permission:*')
 @Controller('permissions')
 export class PermissionsController {
   constructor(private readonly permissionService: PermissionService) {}
 
   @Get()
+  @Permissions('rbac:permission:read')
   @ApiOperation({ summary: '权限列表（分页）' })
   @ApiPaginatedResponse(PermissionVo)
   list(@Query() dto: ListPermissionDto): Promise<PageResultVo<PermissionVo>> {
@@ -41,6 +41,7 @@ export class PermissionsController {
   }
 
   @Get('tree')
+  @Permissions('rbac:permission:read')
   @ApiOperation({ summary: '权限分组树' })
   @ApiArrayResponse(PermissionGroupVo)
   tree(): Promise<PermissionGroupVo[]> {
@@ -48,6 +49,7 @@ export class PermissionsController {
   }
 
   @Post()
+  @Permissions('rbac:permission:create')
   @ApiOperation({ summary: '创建权限' })
   @OperationLogDecorator({ action: 'CREATE_PERMISSION', module: 'Permissions' })
   @ApiBaseResponse(PermissionVo)
@@ -56,6 +58,7 @@ export class PermissionsController {
   }
 
   @Patch(':uid')
+  @Permissions('rbac:permission:update')
   @ApiOperation({ summary: '更新权限' })
   @OperationLogDecorator({ action: 'UPDATE_PERMISSION', module: 'Permissions' })
   @ApiBaseResponse(PermissionVo)
