@@ -92,6 +92,10 @@ export const JWT_DEFAULTS = {
   ACCESS_EXPIRES_IN: '15m',
   /** Refresh Token 过期时间 (env: JWT_REFRESH_EXPIRES_IN) */
   REFRESH_EXPIRES_IN: '7d',
+  /** 记住登录时 Access Token 过期时间 (env: JWT_REMEMBER_ACCESS_EXPIRES_IN) */
+  REMEMBER_ACCESS_EXPIRES_IN: '1d',
+  /** 记住登录时 Refresh Token 过期时间 (env: JWT_REMEMBER_REFRESH_EXPIRES_IN) */
+  REMEMBER_REFRESH_EXPIRES_IN: '30d',
 } as const;
 
 // ============================================================================

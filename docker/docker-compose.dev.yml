@@ -55,12 +55,10 @@ services:
       context: ..
       dockerfile: docker/Dockerfile.admin-api
     restart: unless-stopped
+    # docker dev 专用变量（先 cp env/admin-api.dev.env.example env/admin-api.dev.env）；
+    # DB_HOST/REDIS_HOST 已在该文件内指向 compose 服务名 mysql/redis。
     env_file:
-      - ../.env.example
-      - ../.env.admin-api.example
-    environment:
-      DB_HOST: mysql
-      REDIS_HOST: redis
+      - ../env/admin-api.dev.env
     ports:
       - '3001:3001'
     depends_on:
@@ -76,11 +74,7 @@ services:
       dockerfile: docker/Dockerfile.user-api
     restart: unless-stopped
     env_file:
-      - ../.env.example
-      - ../.env.user-api.example
-    environment:
-      DB_HOST: mysql
-      REDIS_HOST: redis
+      - ../env/user-api.dev.env
     ports:
       - '3002:3002'
     depends_on:
@@ -96,11 +90,7 @@ services:
       dockerfile: docker/Dockerfile.worker
     restart: unless-stopped
     env_file:
-      - ../.env.example
-      - ../.env.worker.example
-    environment:
-      DB_HOST: mysql
-      REDIS_HOST: redis
+      - ../env/worker.dev.env
     depends_on:
       mysql:
         condition: service_healthy

@@ -11,12 +11,12 @@ logs
 *.log
 npm-debug.log*
 
-# env
+# env: real values ignored, only *.example committed
 .env
-.env.*
-!.env.example
-!.env.*.example
 env/*.local.env
+env/*.dev.env
+env/*.env
+!env/*.example
 
 # coverage / test
 coverage

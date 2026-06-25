@@ -58,8 +58,9 @@ services:
       DB_DATABASE: app_template_test
       REDIS_HOST: redis-test
       REDIS_PORT: '6379'
-      JWT_SECRET: test-access-secret
-      JWT_REFRESH_SECRET: test-refresh-secret
+      # 代码要求 JWT_ACCESS_SECRET / JWT_REFRESH_SECRET，且 Joi 校验 >= 32 字符
+      JWT_ACCESS_SECRET: test-access-secret-at-least-32-characters
+      JWT_REFRESH_SECRET: test-refresh-secret-at-least-32-characters
     command: ['npm', 'run', 'test:e2e']
     depends_on:
       mysql-test:

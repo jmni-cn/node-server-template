@@ -17,7 +17,7 @@ services:
       dockerfile: docker/Dockerfile.admin-api
     restart: always
     env_file:
-      - ../.env.production
+      - ../env/admin-api.env
     expose:
       - '3001'
     depends_on:
@@ -30,7 +30,7 @@ services:
       dockerfile: docker/Dockerfile.user-api
     restart: always
     env_file:
-      - ../.env.production
+      - ../env/user-api.env
     expose:
       - '3002'
 
@@ -41,7 +41,7 @@ services:
       dockerfile: docker/Dockerfile.worker
     restart: always
     env_file:
-      - ../.env.production
+      - ../env/worker.env
 
   nginx:
     image: nginx:1.27-alpine
