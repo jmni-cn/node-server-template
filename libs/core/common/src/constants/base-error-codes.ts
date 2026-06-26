@@ -12,6 +12,8 @@ export enum BaseErrorCode {
   SYS_UNAVAILABLE = 'SYS_UNAVAILABLE',
   /** 请求超时 */
   SYS_TIMEOUT = 'SYS_TIMEOUT',
+  /** 数据库错误（底层 driver 错误仅入日志，不外泄） */
+  SYS_DB_ERROR = 'SYS_DB_ERROR',
 
   // ============ 请求级错误 (REQ_) ============
   /** 请求参数验证失败 */
@@ -75,6 +77,7 @@ export const BaseErrorCodeHttpStatus: Record<BaseErrorCode, number> = {
   [BaseErrorCode.SYS_INTERNAL]: 500,
   [BaseErrorCode.SYS_UNAVAILABLE]: 503,
   [BaseErrorCode.SYS_TIMEOUT]: 504,
+  [BaseErrorCode.SYS_DB_ERROR]: 500,
 
   // 请求级错误
   [BaseErrorCode.REQ_VALIDATION_FAILED]: 400,

@@ -53,11 +53,21 @@ export class TaskRetryService {
     await this.taskRepo.save(task);
 
     try {
-      await this.queueProducer.enqueue(QUEUE_NAMES.TASK, JOB_NAMES.TASK.RETRY, {
-        taskUid: task.uid,
-        type: task.type,
-        payload: task.payload ?? undefined,
-      });
+      await this.queueProducer.enqueue(
+        QUEUE_NAMES.TASK,
+        JOB_NAMES.TASK.RETRY,
+        {
+          taskUid: task.uid,
+          type: task.type,
+          payload: task.payload ?? undefined,
+        },
+        {
+          // 以 task.uid 为 jobId 跨完成态去重；剩余尝试次数 = maxAttempts - attempts。
+          jobId: `${task.uid}:retry:${task.attempts}`,
+          attempts: Math.max(1, task.maxAttempts - task.attempts),
+          backoff: { type: 'exponential', delay: 1000 },
+        },
+      );
     } catch (err) {
       this.logger.error(
         `任务重试入队失败 taskUid=${task.uid}: ${(err as Error).message}`,

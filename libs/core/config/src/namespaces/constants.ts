@@ -96,6 +96,40 @@ export const JWT_DEFAULTS = {
   REMEMBER_ACCESS_EXPIRES_IN: '1d',
   /** 记住登录时 Refresh Token 过期时间 (env: JWT_REMEMBER_REFRESH_EXPIRES_IN) */
   REMEMBER_REFRESH_EXPIRES_IN: '30d',
+  /** 单主体最大活跃会话数 (env: JWT_MAX_ACTIVE_SESSIONS)，<= 0 不限制；仅当 SESSION_POLICY=limit 生效 */
+  MAX_ACTIVE_SESSIONS: 1,
+  /**
+   * 会话策略 (env: SESSION_POLICY)。
+   * - 'replace'：登录即作废该主体其它所有活跃会话（全局单会话），maxActiveSessions 忽略。
+   * - 'limit'：保留最近 MAX_ACTIVE_SESSIONS 个，超出按最旧驱逐。
+   */
+  SESSION_POLICY: 'replace',
+} as const;
+
+// ============================================================================
+// 安全 / 风控配置（登录锁定 + IP 自动封禁）
+// ============================================================================
+
+/**
+ * 安全 / 风控配置 - 可被环境变量覆盖的默认值。
+ *
+ * 作用范围：
+ * - 账户锁定（同时作用于终端用户与管理员）：连续登录失败累计达阈值后临时锁定账户。
+ * - IP 风控：滑动窗口内来源 IP 登录失败累计达阈值后自动封禁该 IP 一段时间。
+ *
+ * 默认值与历史硬编码保持一致，仅将其提为可配置项。
+ */
+export const SECURITY_DEFAULTS = {
+  /** 触发账户锁定的连续登录失败阈值 (env: LOGIN_MAX_FAILED) */
+  MAX_FAILED_LOGIN: 5,
+  /** 账户锁定时长（分钟） (env: ACCOUNT_LOCK_MINUTES) */
+  ACCOUNT_LOCK_MINUTES: 15,
+  /** IP 风控滑动窗口（秒） (env: SUSPICIOUS_IP_WINDOW_SECONDS) */
+  SUSPICIOUS_IP_WINDOW_SECONDS: 3600,
+  /** 窗口内触发自动封禁的失败阈值 (env: SUSPICIOUS_IP_THRESHOLD) */
+  SUSPICIOUS_IP_THRESHOLD: 20,
+  /** IP 自动封禁时长（秒） (env: IP_BAN_SECONDS) */
+  IP_BAN_SECONDS: 3600,
 } as const;
 
 // ============================================================================
@@ -118,6 +152,35 @@ export const SSO_DEFAULTS = {
 export const QUEUE_DEFAULTS = {
   /** worker 并发度 (env: QUEUE_CONCURRENCY) */
   CONCURRENCY: 5,
+} as const;
+
+// ============================================================================
+// 任务可靠性兜底配置 (platform/task + worker dispatcher / stale 恢复)
+// ============================================================================
+
+/**
+ * 任务可靠性兜底默认值。
+ *
+ * 直接投递为快路径，dispatcher（PENDING 扫描）+ stale 恢复为兜底，应对入队丢失、
+ * worker 崩溃导致的任务卡死。
+ *
+ * TODO: 后续可在 queue.config / 独立 task.config 命名空间中暴露为环境变量。
+ */
+export const TASK_RELIABILITY_DEFAULTS = {
+  /**
+   * 投递租约宽限秒数：dispatcher 仅重投 dispatched_at 早于 now-该值的任务，
+   * 避免对刚直接投递成功的任务重复投递。
+   */
+  DISPATCH_LEASE_GRACE_SECONDS: 60,
+  /** 单次 dispatcher 扫描捞取的最大任务数 */
+  DISPATCH_SCAN_LIMIT: 100,
+  /**
+   * stale 判定分钟数：RUNNING 且 locked_at 早于 now-该值视为卡死，
+   * 应大于单个任务正常最长执行时长。
+   */
+  STALE_MINUTES: 15,
+  /** 单次 stale 恢复扫描处理的最大任务数 */
+  STALE_SCAN_LIMIT: 100,
 } as const;
 
 // ============================================================================

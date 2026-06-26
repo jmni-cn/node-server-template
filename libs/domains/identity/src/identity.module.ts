@@ -9,6 +9,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { registerErrorCodeHttpStatus } from '@core/common';
+import { ConfigRuntimeModule } from '@platform/config';
 import { SecurityModule } from '@platform/security';
 import { QueueModule, QUEUE_NAMES } from '@platform/queue';
 
@@ -29,6 +30,8 @@ import { SessionService } from './services/session.service';
 import { ProfileService } from './services/profile.service';
 import { ExternalIdentityService } from './services/external-identity.service';
 import { SecurityEventService } from './services/security-event.service';
+import { IdentityAccessSessionValidator } from './services/access-session-validator.service';
+import { SecurityEventRecorderAdapter } from './services/security-event-recorder.adapter';
 import { EndUserAssembler } from './assembler/end-user.assembler';
 
 import { IdentityErrorCodeHttpStatus } from './constants/identity-error-codes';
@@ -36,6 +39,13 @@ import { IdentityErrorCodeHttpStatus } from './constants/identity-error-codes';
 // 模块加载时注册错误码 → HTTP 状态映射。
 registerErrorCodeHttpStatus(IdentityErrorCodeHttpStatus);
 
+/**
+ * 注：本模块**非全局**。平台层端口（ACCESS_SESSION_VALIDATOR /
+ * SECURITY_EVENT_RECORDER）的绑定已移出到独立的 `@Global`
+ * {@link IdentitySecurityPortsModule}，以缩小全局面——本模块只导出领域服务，
+ * 由各 feature 模块按需 import。`IdentityAccessSessionValidator` 与
+ * `SecurityEventRecorderAdapter` 在此作为普通 provider 导出，供端口模块 useExisting。
+ */
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -48,6 +58,7 @@ registerErrorCodeHttpStatus(IdentityErrorCodeHttpStatus);
       SecurityEvent,
     ]),
     SecurityModule,
+    ConfigRuntimeModule,
     QueueModule.registerQueues([QUEUE_NAMES.USER_EVENTS]),
   ],
   providers: [
@@ -60,6 +71,8 @@ registerErrorCodeHttpStatus(IdentityErrorCodeHttpStatus);
     ProfileService,
     ExternalIdentityService,
     SecurityEventService,
+    IdentityAccessSessionValidator,
+    SecurityEventRecorderAdapter,
     EndUserAssembler,
   ],
   exports: [
@@ -72,6 +85,8 @@ registerErrorCodeHttpStatus(IdentityErrorCodeHttpStatus);
     ProfileService,
     ExternalIdentityService,
     SecurityEventService,
+    IdentityAccessSessionValidator,
+    SecurityEventRecorderAdapter,
     EndUserAssembler,
     TypeOrmModule,
   ],

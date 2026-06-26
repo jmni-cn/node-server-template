@@ -8,6 +8,14 @@ export interface NormalizedProfile {
   providerUserId: string;
   /** 邮箱（可能缺省）。 */
   email: string | null;
+  /**
+   * 邮箱是否经 IdP 验证（OIDC `email_verified` 声明）。
+   *
+   * 仅当 IdP 明确返回 `email_verified === true` 时为 true；缺省/false 均视为未验证。
+   * 安全敏感：按邮箱自动绑定到已有账号时，**必须** emailVerified===true 才允许关联，
+   * 否则攻击者可用未验证的同名邮箱劫持账号。
+   */
+  emailVerified: boolean;
   /** 昵称（provider 侧展示昵称：初始化主体 nickname，并落 ExternalIdentity.providerNickname 快照）。 */
   nickname: string | null;
   /** 用户名候选（preferred_username / username / email 本地部分）。 */

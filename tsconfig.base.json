@@ -41,6 +41,8 @@
       "@platform/security/*": ["libs/platform/security/src/*"],
       "@platform/cache": ["libs/platform/cache/src/index.ts"],
       "@platform/cache/*": ["libs/platform/cache/src/*"],
+      "@platform/config": ["libs/platform/config/src/index.ts"],
+      "@platform/config/*": ["libs/platform/config/src/*"],
       "@platform/queue": ["libs/platform/queue/src/index.ts"],
       "@platform/queue/*": ["libs/platform/queue/src/*"],
       "@platform/audit": ["libs/platform/audit/src/index.ts"],

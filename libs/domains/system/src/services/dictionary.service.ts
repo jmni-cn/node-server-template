@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Not, Repository } from 'typeorm';
 import { BusinessException } from '@core/common';
 import { CacheService } from '@platform/cache';
 import { Dictionary } from '../entities/dictionary.entity';
@@ -87,9 +87,12 @@ export class DictionaryService {
     return this.assembler.toDetailVo(dict);
   }
 
-  /** 新增字典项（校验所属字典存在，并失效该字典 code 缓存）。 */
+  /**
+   * 新增字典项（校验所属字典存在、同字典下 value 唯一，并失效该字典 code 缓存）。
+   */
   async addItem(dto: CreateDictionaryItemDto): Promise<DictionaryItemVo> {
     const dict = await this.findDictByUid(dto.dictId);
+    await this.assertItemValueUnique(dto.dictId, dto.value);
 
     const entity = this.itemRepo.create({
       dictId: dto.dictId,
@@ -113,6 +116,11 @@ export class DictionaryService {
       throw new BusinessException(SystemErrorCode.SYS_DICT_ITEM_NOT_FOUND, {
         uid,
       });
+    }
+
+    // 变更 value 时校验同字典下唯一（排除自身）。
+    if (dto.value !== undefined && dto.value !== item.value) {
+      await this.assertItemValueUnique(item.dictId, dto.value, item.uid);
     }
 
     if (dto.label !== undefined) item.label = dto.label;
@@ -153,6 +161,28 @@ export class DictionaryService {
       SYSTEM_CACHE.DICT_TTL,
       SYSTEM_CACHE.NAMESPACE,
     );
+  }
+
+  /**
+   * 校验同一字典（dictId）下字典项 value 唯一。
+   * 冲突抛 SYS_DICT_ITEM_VALUE_TAKEN；updateItem 传 excludeUid 排除自身。
+   */
+  private async assertItemValueUnique(
+    dictId: string,
+    value: string,
+    excludeUid?: string,
+  ): Promise<void> {
+    const exists = await this.itemRepo.findOne({
+      where: excludeUid
+        ? { dictId, value, uid: Not(excludeUid) }
+        : { dictId, value },
+    });
+    if (exists) {
+      throw new BusinessException(SystemErrorCode.SYS_DICT_ITEM_VALUE_TAKEN, {
+        dictId,
+        value,
+      });
+    }
   }
 
   /** 失效指定字典 code 的缓存。 */

@@ -4,7 +4,7 @@
  * 通过 dictId 关联 Dictionary.uid，承载具体的标签/值/排序/状态。
  */
 
-import { Column, Entity, Index } from 'typeorm';
+import { Column, Entity, Index, Unique } from 'typeorm';
 import { BaseEntity } from '@core/database';
 
 /** 字典项状态。 */
@@ -16,6 +16,7 @@ export enum DictionaryItemStatus {
 }
 
 @Entity('dictionary_items')
+@Unique('uq_dictionary_items_dict_value', ['dictId', 'value'])
 export class DictionaryItem extends BaseEntity {
   static override uidPrefix = 'ditm';
 

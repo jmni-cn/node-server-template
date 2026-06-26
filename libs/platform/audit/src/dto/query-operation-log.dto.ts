@@ -63,6 +63,8 @@ export class QueryOperationLogDto extends PaginationDto {
       endTime: this.endTime,
       page: this.page,
       pageSize: this.pageSize,
+      sortBy: this.sortBy,
+      order: this.order,
     };
   }
 }

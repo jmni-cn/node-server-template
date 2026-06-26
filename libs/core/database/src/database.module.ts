@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { type ConfigType } from '@nestjs/config';
 import { databaseConfig } from '@core/config';
+import { AuditFieldsSubscriber } from './subscribers/audit-fields.subscriber';
 
 /**
  * 数据库模块。
@@ -9,6 +10,8 @@ import { databaseConfig } from '@core/config';
  *
  * - synchronize: false（schema 变更走 migration）
  * - autoLoadEntities: true（自动加载各特性模块通过 forFeature 注册的实体）
+ * - AuditFieldsSubscriber：作为 provider 注入，构造时自挂载到 DataSource，
+ *   在写操作时从请求上下文回填行级操作人审计列。
  */
 @Module({
   imports: [
@@ -34,6 +37,7 @@ import { databaseConfig } from '@core/config';
       }),
     }),
   ],
+  providers: [AuditFieldsSubscriber],
   exports: [TypeOrmModule],
 })
 export class DatabaseModule {}

@@ -3,6 +3,7 @@ import {
   ExecutionContext,
   Inject,
   Injectable,
+  Optional,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { BusinessException, IS_PUBLIC_KEY } from '@core/common';
@@ -13,6 +14,10 @@ import {
   ACCESS_CHECKER,
   type AccessChecker,
 } from '../constants/access-checker.token';
+import {
+  SECURITY_EVENT_RECORDER,
+  type SecurityEventRecorder,
+} from '../constants/security-event-recorder.token';
 import type { AdminAuthUser } from '../types/jwt-payload.interface';
 
 /**
@@ -33,8 +38,42 @@ export class PermissionsGuard implements CanActivate {
     private readonly reflector: Reflector,
     private readonly logger: LoggerService,
     @Inject(ACCESS_CHECKER) private readonly accessChecker: AccessChecker,
+    @Optional()
+    @Inject(SECURITY_EVENT_RECORDER)
+    private readonly securityEventRecorder?: SecurityEventRecorder,
   ) {
     this.logger.setContext(PermissionsGuard.name);
+  }
+
+  /**
+   * 记录一条 ACCESS_DENIED 安全事件（端口未绑定或失败均静默，不影响鉴权）。
+   */
+  private recordAccessDenied(payload: {
+    userId?: string | null;
+    method?: string;
+    path?: string;
+    handler: string;
+    required: string[];
+    reason: string;
+  }): void {
+    if (!this.securityEventRecorder) return;
+    try {
+      void Promise.resolve(
+        this.securityEventRecorder.record('ACCESS_DENIED', {
+          userId: payload.userId ?? null,
+          riskLevel: 'medium',
+          metadata: {
+            method: payload.method ?? null,
+            path: payload.path ?? null,
+            handler: payload.handler,
+            required: payload.required,
+            reason: payload.reason,
+          },
+        }),
+      ).catch(() => undefined);
+    } catch {
+      // 记录失败不影响鉴权
+    }
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -68,6 +107,14 @@ export class PermissionsGuard implements CanActivate {
       this.logger.warn(
         `PERM_DENIED: 用户信息缺失 | ${request.method ?? '-'} ${request.url ?? '-'} | handler=${handler} | required=[${requiredPermissions.join(', ')}]`,
       );
+      this.recordAccessDenied({
+        userId: user?.sub ?? null,
+        method: request.method,
+        path: request.url,
+        handler,
+        required: requiredPermissions,
+        reason: 'missing_user',
+      });
       throw new BusinessException(AuthErrorCode.PERM_DENIED);
     }
 
@@ -80,6 +127,14 @@ export class PermissionsGuard implements CanActivate {
       this.logger.warn(
         `PERM_DENIED: 权限不足 | ${request.method ?? '-'} ${request.url ?? '-'} | handler=${handler} | user=${user.sub} | required=[${requiredPermissions.join(', ')}]`,
       );
+      this.recordAccessDenied({
+        userId: user.sub,
+        method: request.method,
+        path: request.url,
+        handler,
+        required: requiredPermissions,
+        reason: 'insufficient_permissions',
+      });
       throw new BusinessException(AuthErrorCode.PERM_DENIED);
     }
 

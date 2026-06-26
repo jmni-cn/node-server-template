@@ -42,20 +42,28 @@ export class RateLimitGuard implements CanActivate {
     const ip = RequestContextService.getIp() ?? request.ip ?? 'unknown';
     const keyBy = options.keyBy ?? 'ip-path';
 
+    // 路由标识：用 Controller 类名 + Handler 方法名，而非具体 URL。
+    // 这样既能让每个端点拥有独立计数桶（同一 IP/用户打满 A 端点不会连带封 B），
+    // 又避免把含路径参数值（如 /users/:id）的完整 path 做 key 导致 key 基数爆炸。
+    const routeKey = `${context.getClass().name}.${context.getHandler().name}`;
+
     let key: string;
     switch (keyBy) {
       case 'ip':
-        key = ip;
+        // 维度名 + IP + 路由，保证每端点独立计数。
+        key = `ip:${ip}:${routeKey}`;
         break;
-      case 'user':
-        key = RequestContextService.getSub() ?? ip;
-        break;
-      case 'ip-path':
-      default: {
-        const path = request.url.split('?')[0];
-        key = `${ip}:${path}`;
+      case 'user': {
+        // 维度名 + 用户(sub，缺失回退 IP) + 路由。
+        const subject = RequestContextService.getSub() ?? ip;
+        key = `user:${subject}:${routeKey}`;
         break;
       }
+      case 'ip-path':
+      default:
+        // ip-path 语义不变：IP + 路由标识（用 handler 标识替代原始 path，避免路径参数撑爆 key）。
+        key = `ip-path:${ip}:${routeKey}`;
+        break;
     }
 
     const result = await this.rateLimitService.hit(

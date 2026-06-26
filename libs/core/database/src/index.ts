@@ -7,6 +7,7 @@
 export * from './database.module';
 export * from './typeorm-options.factory';
 export * from './entities';
+export * from './subscribers/audit-fields.subscriber';
 export * from './transaction';
 
 // CLI 数据源（默认导出供 TypeORM CLI 使用）

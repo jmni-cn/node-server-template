@@ -31,6 +31,9 @@ function isHealthCheckPath(url: string): boolean {
   );
 }
 
+/** 慢请求阈值（毫秒）：响应耗时超过该值时以 warn 级别记录并打 slow 标记。 */
+const SLOW_REQUEST_THRESHOLD_MS = 1000;
+
 /**
  * 请求日志拦截器。
  * 记录每个请求的基本信息和响应时间，从 RequestContextService (AsyncLocalStorage)
@@ -78,8 +81,16 @@ export class LoggingInterceptor implements NestInterceptor {
     return next.handle().pipe(
       tap({
         next: () => {
-          if (skipSuccessLog) return;
           const responseTime = Date.now() - startTime;
+          // 慢请求：即便是健康检查路径也记录，便于发现性能退化。
+          if (responseTime > SLOW_REQUEST_THRESHOLD_MS) {
+            this.logger?.warn(
+              `<-- ${method} ${url} ${responseTime}ms [slow]`,
+              { responseTime, slow: true },
+            );
+            return;
+          }
+          if (skipSuccessLog) return;
           this.logger?.log(`<-- ${method} ${url} ${responseTime}ms`, {
             responseTime,
           });

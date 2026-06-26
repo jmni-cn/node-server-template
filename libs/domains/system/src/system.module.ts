@@ -2,9 +2,10 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { registerErrorCodeHttpStatus } from '@core/common';
 import { CacheModule } from '@platform/cache';
+// SystemConfig 实体已下沉到 @platform/config；后台管理壳直接从该层导入（弃用旧垫片）。
+import { ConfigRuntimeModule, SystemConfig } from '@platform/config';
 import { Dictionary } from './entities/dictionary.entity';
 import { DictionaryItem } from './entities/dictionary-item.entity';
-import { SystemConfig } from './entities/system-config.entity';
 import { DictionaryService } from './services/dictionary.service';
 import { SystemConfigService } from './services/system-config.service';
 import { DictionaryAssembler } from './assembler/dictionary.assembler';
@@ -22,6 +23,7 @@ registerErrorCodeHttpStatus(SystemErrorCodeHttpStatus);
   imports: [
     TypeOrmModule.forFeature([Dictionary, DictionaryItem, SystemConfig]),
     CacheModule,
+    ConfigRuntimeModule,
   ],
   providers: [DictionaryService, SystemConfigService, DictionaryAssembler],
   exports: [DictionaryService, SystemConfigService, DictionaryAssembler],

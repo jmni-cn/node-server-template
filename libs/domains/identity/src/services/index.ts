@@ -10,3 +10,4 @@ export * from './session.service';
 export * from './profile.service';
 export * from './external-identity.service';
 export * from './security-event.service';
+export * from './access-session-validator.service';

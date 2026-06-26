@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -12,6 +13,7 @@ import {
   ApiArrayResponse,
   ApiBaseResponse,
   ApiPaginatedResponse,
+  ApiSuccessResponse,
   PageResultVo,
 } from '@core/common';
 import { Permissions } from '@platform/auth';
@@ -67,5 +69,14 @@ export class PermissionsController {
     @Body() dto: UpdatePermissionDto,
   ): Promise<PermissionVo> {
     return this.permissionService.update(uid, dto);
+  }
+
+  @Delete(':uid')
+  @Permissions('rbac:permission:delete')
+  @ApiOperation({ summary: '删除权限（清理角色授权）' })
+  @OperationLogDecorator({ action: 'DELETE_PERMISSION', module: 'Permissions' })
+  @ApiSuccessResponse()
+  remove(@Param('uid') uid: string): Promise<void> {
+    return this.permissionService.remove(uid);
   }
 }

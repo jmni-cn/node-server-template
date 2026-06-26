@@ -7,12 +7,19 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { createPageResult, BusinessException } from '@core/common';
+import {
+  assertSortWhitelist,
+  createPageResult,
+  BusinessException,
+} from '@core/common';
 import type { PageResultVo } from '@core/common';
 import { OperationLog } from '../entities/operation-log.entity';
 import { OperationLogMapper } from '../mapper/operation-log.mapper';
 import { AuditErrorCode } from '../constants/audit-error-codes';
 import type { OperationLogQueryParams } from '../types';
+
+/** 操作日志列表允许排序的字段白名单（防任意字段排序 / SQL 注入）。 */
+const OP_LOG_SORT_WHITELIST = ['createdAt'] as const;
 import type {
   OperationLogDetailVo,
   OperationLogListItemVo,
@@ -42,6 +49,9 @@ export class OperationLogQueryService {
       endTime,
     } = params;
 
+    const sortBy =
+      assertSortWhitelist(params.sortBy, OP_LOG_SORT_WHITELIST) ?? 'createdAt';
+
     const qb = this.operationLogRepository.createQueryBuilder('log');
 
     if (module) {
@@ -67,7 +77,7 @@ export class OperationLogQueryService {
       qb.andWhere('log.createdAt <= :endTime', { endTime });
     }
 
-    qb.orderBy('log.createdAt', 'DESC')
+    qb.orderBy(`log.${sortBy}`, params.order ?? 'DESC')
       .skip((page - 1) * pageSize)
       .take(pageSize);
 

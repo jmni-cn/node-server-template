@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '@platform/auth';
+import { AuditModule } from '@platform/audit';
 import { SsoModule } from '@integrations/sso';
 import { IdentityModule } from '@domains/identity';
 import { AccessControlModule } from '@domains/access-control';
@@ -11,6 +12,7 @@ import { AdminSsoService } from './admin-sso.service';
 @Module({
   imports: [
     AuthModule.forRoot(),
+    AuditModule,
     SsoModule,
     IdentityModule,
     AccessControlModule,

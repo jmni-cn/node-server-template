@@ -27,6 +27,8 @@ export class QueryTaskDto extends PaginationDto {
       status: this.status,
       page: this.page,
       pageSize: this.pageSize,
+      sortBy: this.sortBy,
+      order: this.order,
     };
   }
 }

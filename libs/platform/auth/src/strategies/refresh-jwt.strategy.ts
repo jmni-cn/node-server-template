@@ -3,6 +3,8 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigType } from '@nestjs/config';
 import { jwtConfig } from '@core/config';
+import { BusinessException } from '@core/common';
+import { AuthErrorCode } from '../constants/auth-error-codes';
 import type {
   RefreshAuthUser,
   RefreshTokenPayload,
@@ -16,47 +18,73 @@ interface RequestWithCookies {
 }
 
 /**
- * 从请求中提取 Refresh Token：
- * 1. 优先尝试 `Authorization: Bearer <token>` 头；
- * 2. 退回到 HttpOnly Cookie `refresh_token`。
+ * 从请求中提取 Refresh Token。
+ *
+ * 默认仅从 HttpOnly Cookie `refresh_token` 提取（XSS 下 JS 无法读取，安全性更高）。
+ * 仅当配置 `jwt.refreshFromAuthHeader=true`（env: JWT_REFRESH_FROM_AUTH_HEADER）时，
+ * 才退回尝试 `Authorization: Bearer <token>` 头——用于无 Cookie 的纯 API / 移动端场景。
  */
-function extractRefreshToken(req: RequestWithCookies): string | null {
-  const fromHeader = ExtractJwt.fromAuthHeaderAsBearerToken()(
-    req as Parameters<
-      ReturnType<typeof ExtractJwt.fromAuthHeaderAsBearerToken>
-    >[0],
-  );
-  if (fromHeader) {
-    return fromHeader;
+function extractRefreshToken(
+  req: RequestWithCookies,
+  allowAuthHeader: boolean,
+): string | null {
+  const fromCookie = req.cookies?.[REFRESH_TOKEN_COOKIE_NAME] ?? null;
+  if (fromCookie) {
+    return fromCookie;
   }
-  return req.cookies?.[REFRESH_TOKEN_COOKIE_NAME] ?? null;
+  if (allowAuthHeader) {
+    return (
+      ExtractJwt.fromAuthHeaderAsBearerToken()(
+        req as Parameters<
+          ReturnType<typeof ExtractJwt.fromAuthHeaderAsBearerToken>
+        >[0],
+      ) ?? null
+    );
+  }
+  return null;
 }
 
 /**
  * Refresh Token 校验策略（passport 名称：'refresh-jwt'）。
  *
- * 使用 refresh 密钥校验，从 Bearer 头或 `refresh_token` cookie 提取原始 token，
- * 并将其作为 `rawToken` 一并返回，供上层做 hash 比对 / Token 轮换。
+ * 使用 refresh 密钥（锁定 HS256）校验，默认仅从 `refresh_token` cookie 提取原始 token，
+ * 校验 `typ==='refresh'` 后将其作为 `rawToken` 一并返回，供上层做 hash 比对 / Token 轮换。
  */
 @Injectable()
 export class RefreshJwtStrategy extends PassportStrategy(
   Strategy,
   'refresh-jwt',
 ) {
+  private readonly allowAuthHeader: boolean;
+
   constructor(@Inject(jwtConfig.KEY) cfg: ConfigType<typeof jwtConfig>) {
+    const allowAuthHeader = cfg.refreshFromAuthHeader;
     super({
-      jwtFromRequest: extractRefreshToken,
+      jwtFromRequest: (req: RequestWithCookies) =>
+        extractRefreshToken(req, allowAuthHeader),
       ignoreExpiration: false,
       secretOrKey: cfg.refreshSecret,
+      algorithms: ['HS256'],
       passReqToCallback: true,
     });
+    this.allowAuthHeader = allowAuthHeader;
   }
 
   validate(
     req: RequestWithCookies,
     payload: RefreshTokenPayload,
   ): RefreshAuthUser {
-    const rawToken = extractRefreshToken(req) ?? '';
+    // 类型与必填字段校验：拒绝把 access token 当作 refresh token 使用。
+    if (
+      payload?.typ !== 'refresh' ||
+      typeof payload.sub !== 'string' ||
+      typeof payload.jti !== 'string' ||
+      typeof payload.pv !== 'number'
+    ) {
+      throw new BusinessException(AuthErrorCode.TOKEN_REFRESH_INVALID);
+    }
+
+    const rawToken = extractRefreshToken(req, this.allowAuthHeader) ?? '';
     return {
       sub: payload.sub,
       jti: payload.jti,

@@ -79,9 +79,35 @@ export class EndUser extends BaseEntity {
     name: 'last_login_ip',
     length: 45,
     nullable: true,
-    comment: '最后登录 IP',
+    comment: '最后登录 IP（脱敏存储）',
   })
   lastLoginIp: string | null;
+
+  @Column({
+    type: 'int',
+    name: 'failed_login_count',
+    default: 0,
+    comment: '连续登录失败次数（成功登录后清零）',
+  })
+  failedLoginCount: number;
+
+  @Column({
+    type: 'datetime',
+    name: 'locked_until',
+    precision: 6,
+    nullable: true,
+    comment: '账户锁定截止时间 (UTC)；为空或已过期表示未锁定',
+  })
+  lockedUntil: Date | null;
+
+  @Column({
+    type: 'datetime',
+    name: 'last_failed_login_at',
+    precision: 6,
+    nullable: true,
+    comment: '最后一次登录失败时间 (UTC)',
+  })
+  lastFailedLoginAt: Date | null;
 
   // ↓↓↓ 业务可扩展字段写在这里 ↓↓↓
   // 例如：实名信息、会员等级、积分、来源渠道等业务字段。

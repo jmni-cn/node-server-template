@@ -8,16 +8,12 @@ import { RequestContextModule } from '@core/request-context';
 import { I18nModule } from '@core/i18n';
 import { CacheModule } from '@platform/cache';
 import { QueueModule } from '@platform/queue';
-import {
-  AuthModule,
-  AdminJwtAuthGuard,
-  PermissionsGuard,
-} from '@platform/auth';
+import { AuthModule, AdminJwtAuthGuard, PermissionsGuard } from '@platform/auth';
 import { SecurityModule } from '@platform/security';
 import { AuditModule, OperationLogInterceptor } from '@platform/audit';
 import { TaskModule } from '@platform/task';
 import { HealthModule } from '@platform/health';
-import { IdentityModule } from '@domains/identity';
+import { IdentityModule, IdentitySecurityPortsModule } from '@domains/identity';
 import { AccessControlModule } from '@domains/access-control';
 import { SystemModule } from '@domains/system';
 import { SsoModule } from '@integrations/sso';
@@ -61,6 +57,8 @@ import { AdminHealthModule } from './modules/health/admin-health.module';
     HealthModule,
     // ---- domains / integrations ----
     IdentityModule,
+    // 绑定平台层安全端口（ACCESS_SESSION_VALIDATOR / SECURITY_EVENT_RECORDER）到 identity 实现。
+    IdentitySecurityPortsModule,
     AccessControlModule,
     SystemModule,
     SsoModule,
@@ -83,6 +81,9 @@ import { AdminHealthModule } from './modules/health/admin-health.module';
     { provide: APP_GUARD, useClass: PermissionsGuard },
     // 全局操作日志拦截器（读取 @OperationLogDecorator 元数据并入队）。
     { provide: APP_INTERCEPTOR, useClass: OperationLogInterceptor },
+    // 说明：ACCESS_SESSION_VALIDATOR 与 SECURITY_EVENT_RECORDER 两个平台层端口
+    // 现由 @Global 的 IdentityModule 统一绑定并导出（见 IdentityModule），
+    // 以保证 @platform/auth 的 passport 策略 / PermissionsGuard 能在其自身上下文解析到实现。
   ],
 })
 export class AppModule {}

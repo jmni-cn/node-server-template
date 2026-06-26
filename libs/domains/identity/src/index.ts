@@ -8,6 +8,7 @@
  * 依赖边界：仅依赖 @core/* 与 @platform/*。
  */
 export * from './identity.module';
+export * from './identity-security-ports.module';
 
 export * from './entities';
 export * from './dto';

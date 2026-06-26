@@ -4,6 +4,7 @@
  * 纯静态方法，无依赖注入。所有 Entity <-> VO 转换必须通过此 Mapper。
  */
 
+import { DataMaskingUtil } from '@core/common';
 import type { OperationLog } from '../entities/operation-log.entity';
 import type {
   OperationLogDetailVo,
@@ -11,6 +12,21 @@ import type {
 } from '../vo/operation-log.vo';
 
 export class OperationLogMapper {
+  /**
+   * 对详情 VO 中的 params/result 做返回侧二次脱敏。
+   *
+   * 入库时已脱敏，此处再脱敏一次作为纵深防御，防止历史数据或
+   * 手动写入的日志将敏感字段透出到查询接口。
+   */
+  private static maskJson(
+    value: object | null | undefined,
+  ): object | null {
+    if (!value || typeof value !== 'object') return null;
+    return DataMaskingUtil.redactSensitiveKeys(
+      value as Record<string, unknown>,
+    );
+  }
+
   /**
    * 转换为详情 VO。
    */
@@ -28,8 +44,8 @@ export class OperationLogMapper {
       module: log.module,
       method: log.method,
       path: log.path,
-      params: log.params,
-      result: log.result,
+      params: OperationLogMapper.maskJson(log.params),
+      result: OperationLogMapper.maskJson(log.result),
 
       ip: log.ip,
       userAgent: log.userAgent,

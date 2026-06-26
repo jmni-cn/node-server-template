@@ -33,6 +33,12 @@ export enum IdentityErrorCode {
   USER_EXTERNAL_IDENTITY_NOT_FOUND = 'USER_EXTERNAL_IDENTITY_NOT_FOUND',
   /** 外部身份已绑定到其他用户 */
   USER_EXTERNAL_IDENTITY_LINKED = 'USER_EXTERNAL_IDENTITY_LINKED',
+  /** 账户因连续登录失败被临时锁定 */
+  USER_LOCKED = 'USER_LOCKED',
+  /** 解绑会导致无任何可用登录方式（密码 + 外部身份均无） */
+  CANNOT_UNLINK_LAST_LOGIN_METHOD = 'CANNOT_UNLINK_LAST_LOGIN_METHOD',
+  /** 外部账号绑定必须经由 SSO 授权回调，禁止直接信任客户端传入的 providerUserId */
+  EXTERNAL_LINK_MUST_USE_OAUTH = 'EXTERNAL_LINK_MUST_USE_OAUTH',
 
   // ============ 会话 / 刷新令牌安全 ============
   /** 会话无效（不存在 / 已撤销 / 不匹配） */
@@ -65,7 +71,10 @@ export const IdentityErrorCodeHttpStatus: Record<string, number> = {
   [IdentityErrorCode.USER_EMAIL_TAKEN]: HttpStatus.CONFLICT,
   [IdentityErrorCode.USER_PHONE_TAKEN]: HttpStatus.CONFLICT,
   [IdentityErrorCode.USER_EXTERNAL_IDENTITY_LINKED]: HttpStatus.CONFLICT,
+  [IdentityErrorCode.CANNOT_UNLINK_LAST_LOGIN_METHOD]: HttpStatus.CONFLICT,
+  [IdentityErrorCode.EXTERNAL_LINK_MUST_USE_OAUTH]: HttpStatus.BAD_REQUEST,
   [IdentityErrorCode.USER_DISABLED]: HttpStatus.FORBIDDEN,
+  [IdentityErrorCode.USER_LOCKED]: HttpStatus.FORBIDDEN,
   [IdentityErrorCode.USER_PASSWORD_INCORRECT]: HttpStatus.UNAUTHORIZED,
 
   // 会话 / 刷新令牌安全

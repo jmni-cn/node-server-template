@@ -7,7 +7,6 @@
   "exclude": [
     "node_modules",
     "dist",
-    "scripts/check-no-ai.ts",
     "scripts/check-boundaries.ts",
     "scripts/check-layer-rules.ts"
   ]

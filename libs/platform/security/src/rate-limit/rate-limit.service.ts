@@ -34,12 +34,8 @@ export class RateLimitService {
     const redisKey = `${KEY_PREFIX}${key}`;
     const windowSeconds = Math.ceil(windowMs / 1000);
 
-    const count = await this.redis.incr(redisKey);
-    if (count === 1) {
-      await this.redis.expire(redisKey, windowSeconds);
-    }
-
-    const ttl = await this.redis.ttl(redisKey);
+    // 原子 INCR + 首次 EXPIRE + 读 TTL（单 Lua 脚本），消除分步竞态导致 key 永不过期。
+    const { count, ttl } = await this.redis.rateLimitHit(redisKey, windowSeconds);
     const resetInSeconds = ttl > 0 ? ttl : windowSeconds;
     const remaining = Math.max(0, max - count);
     const allowed = count <= max;

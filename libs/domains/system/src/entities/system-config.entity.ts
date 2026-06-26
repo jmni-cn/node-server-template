@@ -1,64 +1,14 @@
 /**
- * SystemConfig Entity — 系统配置实体。
+ * SystemConfig 兼容 re-export。
  *
- * 基于 key 的键值配置，value 以文本存储，按 type 在读取时做类型化解析。
+ * 实体已下沉到 @platform/config（运行时配置基础设施层）。
+ * 为避免破坏 @domains/system 内部与外部对旧路径的引用，这里做一次兼容性
+ * 转发。新代码请直接从 @platform/config 导入。
+ *
+ * 注意：实体类只能有唯一定义，本文件仅做转发，不重复声明实体。
  */
-
-import { Column, Entity, Index } from 'typeorm';
-import { BaseEntity } from '@core/database';
-
-/** 系统配置值类型。 */
-export enum SystemConfigType {
-  STRING = 'string',
-  NUMBER = 'number',
-  BOOLEAN = 'boolean',
-  JSON = 'json',
-}
-
-@Entity('system_configs')
-export class SystemConfig extends BaseEntity {
-  static override uidPrefix = 'cfg';
-
-  @Column({
-    type: 'varchar',
-    name: 'config_key',
-    length: 128,
-    unique: true,
-    comment: '配置键（全局唯一）',
-  })
-  key: string;
-
-  @Column({
-    type: 'text',
-    name: 'config_value',
-    nullable: true,
-    comment: '配置值（文本存储，按 type 解析）',
-  })
-  value: string | null;
-
-  @Column({
-    type: 'enum',
-    enum: SystemConfigType,
-    default: SystemConfigType.STRING,
-    comment: '值类型: string/number/boolean/json',
-  })
-  type: SystemConfigType;
-
-  @Index()
-  @Column({
-    type: 'varchar',
-    name: 'config_group',
-    length: 64,
-    default: 'default',
-    comment: '配置分组',
-  })
-  group: string;
-
-  @Column({
-    type: 'varchar',
-    length: 255,
-    nullable: true,
-    comment: '配置描述',
-  })
-  description: string | null;
-}
+export {
+  SystemConfig,
+  SystemConfigType,
+  SystemConfigSource,
+} from '@platform/config';

@@ -12,7 +12,7 @@ import { AuthModule, UserJwtAuthGuard } from '@platform/auth';
 import { SecurityModule } from '@platform/security';
 import { AuditModule, OperationLogInterceptor } from '@platform/audit';
 import { HealthModule } from '@platform/health';
-import { IdentityModule } from '@domains/identity';
+import { IdentityModule, IdentitySecurityPortsModule } from '@domains/identity';
 import { SsoModule } from '@integrations/sso';
 
 import { AppController } from './app.controller';
@@ -43,6 +43,8 @@ import { UserHealthModule } from './modules/health/user-health.module';
     AuditModule,
     HealthModule,
     IdentityModule,
+    // 绑定平台层安全端口（ACCESS_SESSION_VALIDATOR / SECURITY_EVENT_RECORDER）到 identity 实现。
+    IdentitySecurityPortsModule,
     SsoModule,
     // feature modules
     UserAuthModule,
@@ -56,6 +58,8 @@ import { UserHealthModule } from './modules/health/user-health.module';
     AppService,
     { provide: APP_GUARD, useClass: UserJwtAuthGuard },
     { provide: APP_INTERCEPTOR, useClass: OperationLogInterceptor },
+    // 说明：ACCESS_SESSION_VALIDATOR 端口现由 @Global 的 IdentityModule 统一绑定并导出，
+    // 以保证 @platform/auth 的 passport 策略能在其自身上下文解析到实现（详见 IdentityModule）。
   ],
 })
 export class AppModule {}

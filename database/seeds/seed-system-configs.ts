@@ -4,7 +4,8 @@
  * 幂等：以 key 查重。
  */
 import { DataSource } from 'typeorm';
-import { SystemConfig, SystemConfigType } from '@domains/system';
+// 实体已下沉到 @platform/config；直接从该层导入（弃用 @domains/system 旧垫片转发）。
+import { SystemConfig, SystemConfigType } from '@platform/config';
 
 interface ConfigSeed {
   key: string;

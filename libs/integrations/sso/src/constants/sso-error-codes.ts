@@ -16,6 +16,10 @@ export enum SsoErrorCode {
   SSO_ACCOUNT_NOT_LINKED = 'SSO_ACCOUNT_NOT_LINKED',
   /** SSO 主体不存在（管理端 SSO 不自动开户，未命中已有管理员时抛出）。 */
   SSO_ACCOUNT_NOT_FOUND = 'SSO_ACCOUNT_NOT_FOUND',
+  /** SSO 自动开户已被关闭（allowAutoRegister=false），且未匹配到已有用户。 */
+  SSO_AUTO_REGISTER_DISABLED = 'SSO_AUTO_REGISTER_DISABLED',
+  /** 邮箱域不在自动开户白名单内，拒绝开户。 */
+  SSO_EMAIL_DOMAIN_NOT_ALLOWED = 'SSO_EMAIL_DOMAIN_NOT_ALLOWED',
 }
 
 /**
@@ -26,6 +30,8 @@ export const SsoErrorCodeHttpStatus: Record<SsoErrorCode, HttpStatus> = {
   [SsoErrorCode.SSO_PROVIDER_NOT_SUPPORTED]: HttpStatus.BAD_REQUEST,
   [SsoErrorCode.SSO_ACCOUNT_NOT_LINKED]: HttpStatus.NOT_FOUND,
   [SsoErrorCode.SSO_ACCOUNT_NOT_FOUND]: HttpStatus.NOT_FOUND,
+  [SsoErrorCode.SSO_AUTO_REGISTER_DISABLED]: HttpStatus.FORBIDDEN,
+  [SsoErrorCode.SSO_EMAIL_DOMAIN_NOT_ALLOWED]: HttpStatus.FORBIDDEN,
   [SsoErrorCode.SSO_STATE_INVALID]: HttpStatus.BAD_REQUEST,
   [SsoErrorCode.SSO_STATE_MISMATCH]: HttpStatus.UNAUTHORIZED,
   [SsoErrorCode.SSO_CODE_INVALID]: HttpStatus.UNAUTHORIZED,

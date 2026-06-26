@@ -34,6 +34,8 @@ export class TokenService {
   signAccessToken(payload: AccessPayload): string {
     return this.jwtService.sign(payload, {
       secret: this.cfg.accessSecret,
+      // 显式锁定签名算法，与校验侧一致，防止算法混淆。
+      algorithm: 'HS256',
       // expiresIn 统一传数值秒，避免依赖 @nestjs/jwt 的字符串解析与 ms 类型
       expiresIn: parseExpiresIn(this.cfg.accessExpiresIn),
     });
@@ -45,6 +47,7 @@ export class TokenService {
   signRefreshToken(payload: RefreshTokenPayload): string {
     return this.jwtService.sign(payload, {
       secret: this.cfg.refreshSecret,
+      algorithm: 'HS256',
       expiresIn: parseExpiresIn(this.cfg.refreshExpiresIn),
     });
   }
@@ -80,10 +83,12 @@ export class TokenService {
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(input.access, {
         secret: this.cfg.accessSecret,
+        algorithm: 'HS256',
         expiresIn: accessExpiresInSeconds,
       }),
       this.jwtService.signAsync(input.refresh, {
         secret: this.cfg.refreshSecret,
+        algorithm: 'HS256',
         expiresIn: refreshExpiresInSeconds,
       }),
     ]);
@@ -104,6 +109,8 @@ export class TokenService {
     try {
       return this.jwtService.verify<T>(token, {
         secret: this.cfg.accessSecret,
+        // 仅接受 HS256，拒绝 alg=none 及非对称算法降级。
+        algorithms: ['HS256'],
       });
     } catch {
       throw new BusinessException(AuthErrorCode.TOKEN_ACCESS_INVALID);
@@ -117,6 +124,7 @@ export class TokenService {
     try {
       return this.jwtService.verify<RefreshTokenPayload>(token, {
         secret: this.cfg.refreshSecret,
+        algorithms: ['HS256'],
       });
     } catch {
       throw new BusinessException(AuthErrorCode.TOKEN_REFRESH_INVALID);

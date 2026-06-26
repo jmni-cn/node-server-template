@@ -55,6 +55,7 @@
     "platform-auth": { "type": "library", "root": "libs/platform/auth", "entryFile": "index", "sourceRoot": "libs/platform/auth/src", "compilerOptions": { "tsConfigPath": "libs/platform/auth/tsconfig.lib.json" } },
     "platform-security": { "type": "library", "root": "libs/platform/security", "entryFile": "index", "sourceRoot": "libs/platform/security/src", "compilerOptions": { "tsConfigPath": "libs/platform/security/tsconfig.lib.json" } },
     "platform-cache": { "type": "library", "root": "libs/platform/cache", "entryFile": "index", "sourceRoot": "libs/platform/cache/src", "compilerOptions": { "tsConfigPath": "libs/platform/cache/tsconfig.lib.json" } },
+    "platform-config": { "type": "library", "root": "libs/platform/config", "entryFile": "index", "sourceRoot": "libs/platform/config/src", "compilerOptions": { "tsConfigPath": "libs/platform/config/tsconfig.lib.json" } },
     "platform-queue": { "type": "library", "root": "libs/platform/queue", "entryFile": "index", "sourceRoot": "libs/platform/queue/src", "compilerOptions": { "tsConfigPath": "libs/platform/queue/tsconfig.lib.json" } },
     "platform-audit": { "type": "library", "root": "libs/platform/audit", "entryFile": "index", "sourceRoot": "libs/platform/audit/src", "compilerOptions": { "tsConfigPath": "libs/platform/audit/tsconfig.lib.json" } },
     "platform-task": { "type": "library", "root": "libs/platform/task", "entryFile": "index", "sourceRoot": "libs/platform/task/src", "compilerOptions": { "tsConfigPath": "libs/platform/task/tsconfig.lib.json" } },

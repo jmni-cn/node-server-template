@@ -7,7 +7,7 @@
 
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Like, Repository } from 'typeorm';
+import { DataSource, In, Like, Repository } from 'typeorm';
 import {
   BusinessException,
   PageResultVo,
@@ -35,6 +35,7 @@ import { PermissionService } from './permission.service';
 
 import { AccessErrorCode } from '../constants/access-error-codes';
 import { RBAC_CACHE } from '../constants/cache.constants';
+import { SUPER_ADMIN_ROLE_CODE } from '../constants/role.constants';
 
 @Injectable()
 export class RoleService {
@@ -50,6 +51,7 @@ export class RoleService {
     private readonly permissionService: PermissionService,
     private readonly cacheService: CacheService,
     private readonly roleAssembler: RoleAssembler,
+    private readonly dataSource: DataSource,
   ) {}
 
   /** 创建角色（编码唯一）。 */
@@ -81,7 +83,15 @@ export class RoleService {
     }
     if (dto.name !== undefined) role.name = dto.name;
     if (dto.description !== undefined) role.description = dto.description;
+    const enabledChanged =
+      dto.enabled !== undefined && dto.enabled !== role.enabled;
+    if (dto.enabled !== undefined) role.enabled = dto.enabled;
     const saved = await this.roleRepository.save(role);
+
+    // 启停状态变化会影响该角色下用户的权限聚合结果，失效其权限缓存。
+    if (enabledChanged) {
+      await this.invalidateRolePerms(role.uid);
+    }
     return RoleMapper.toVo(saved);
   }
 
@@ -92,6 +102,12 @@ export class RoleService {
       throw new BusinessException(AccessErrorCode.RBAC_ROLE_NOT_FOUND, { uid });
     }
     return role;
+  }
+
+  /** 将角色 uid 列表解析为角色实体列表（仅返回存在的，未软删）。 */
+  async resolveRolesByUids(uids: string[]): Promise<Role[]> {
+    if (!uids.length) return [];
+    return this.roleRepository.find({ where: { uid: In(uids) } });
   }
 
   /** 获取角色详情（含权限与菜单）。 */
@@ -119,13 +135,38 @@ export class RoleService {
     return createPageResult(RoleMapper.toVoArray(items), total, page, pageSize);
   }
 
-  /** 删除角色（系统内置角色禁止删除）。 */
+  /**
+   * 删除角色（系统内置角色禁止删除）。
+   *
+   * 在单个事务内同时：软删除角色本身，并清理 user_roles / role_permissions /
+   * role_menus 中该角色的全部关联行（关联表为显式 join 表，硬删除即可）。
+   * 删除前先收集受影响用户，提交后失效其权限码缓存。
+   */
   async remove(uid: string): Promise<void> {
     const role = await this.findByUid(uid);
     if (role.isSystem) {
       throw new BusinessException(AccessErrorCode.RBAC_ROLE_IS_SYSTEM, { uid });
     }
-    await this.roleRepository.softRemove(role);
+
+    // 先收集受该角色影响的用户，便于事务提交后失效缓存。
+    const affectedUserRoles = await this.userRoleRepository.find({
+      where: { roleId: role.uid },
+    });
+    const affectedUserIds = Array.from(
+      new Set(affectedUserRoles.map((ur) => ur.userId)),
+    );
+
+    await this.dataSource.transaction(async (manager) => {
+      await manager.delete(UserRole, { roleId: role.uid });
+      await manager.delete(RolePermission, { roleId: role.uid });
+      await manager.delete(RoleMenu, { roleId: role.uid });
+      await manager.softRemove(role);
+    });
+
+    // 事务提交后失效相关用户权限缓存（best-effort）。
+    await Promise.all(
+      affectedUserIds.map((userId) => this.invalidateUserPerms(userId)),
+    );
   }
 
   /** 为角色分配权限（全量替换）。 */
@@ -138,16 +179,19 @@ export class RoleService {
       dto.permissionUids,
     );
 
-    await this.rolePermissionRepository.delete({ roleId: role.uid });
-    if (permissions.length) {
-      const rows = permissions.map((p) =>
-        this.rolePermissionRepository.create({
-          roleId: role.uid,
-          permissionId: p.uid,
-        }),
-      );
-      await this.rolePermissionRepository.save(rows);
-    }
+    // 在单个事务内「先删旧绑定再写新绑定」，避免 delete 后 save 失败留下空授权。
+    await this.dataSource.transaction(async (manager) => {
+      await manager.delete(RolePermission, { roleId: role.uid });
+      if (permissions.length) {
+        const rows = permissions.map((p) =>
+          manager.create(RolePermission, {
+            roleId: role.uid,
+            permissionId: p.uid,
+          }),
+        );
+        await manager.save(rows);
+      }
+    });
 
     await this.invalidateRolePerms(role.uid);
   }
@@ -155,38 +199,79 @@ export class RoleService {
   /** 为角色分配菜单（全量替换）。 */
   async assignMenus(roleUid: string, dto: AssignMenusDto): Promise<void> {
     const role = await this.findByUid(roleUid);
-
-    await this.roleMenuRepository.delete({ roleId: role.uid });
     const uniqueMenuUids = Array.from(new Set(dto.menuUids));
-    if (uniqueMenuUids.length) {
-      const rows = uniqueMenuUids.map((menuUid) =>
-        this.roleMenuRepository.create({
-          roleId: role.uid,
-          menuId: menuUid,
-        }),
-      );
-      await this.roleMenuRepository.save(rows);
-    }
+
+    // 在单个事务内「先删旧绑定再写新绑定」，避免 delete 后 save 失败留下空授权。
+    await this.dataSource.transaction(async (manager) => {
+      await manager.delete(RoleMenu, { roleId: role.uid });
+      if (uniqueMenuUids.length) {
+        const rows = uniqueMenuUids.map((menuUid) =>
+          manager.create(RoleMenu, {
+            roleId: role.uid,
+            menuId: menuUid,
+          }),
+        );
+        await manager.save(rows);
+      }
+    });
   }
 
-  /** 为用户分配角色（全量替换该用户的角色绑定）。 */
+  /**
+   * 为用户分配角色（全量替换该用户的角色绑定）。
+   *
+   * 写入前用 In 查询校验传入的 roleUids 全部真实存在（未软删），
+   * 存在不存在的 uid 则抛 RBAC_ROLE_NOT_FOUND。
+   */
   async assignRolesToUser(userId: string, dto: AssignRolesDto): Promise<void> {
-    await this.userRoleRepository.delete({ userId });
     const uniqueRoleUids = Array.from(new Set(dto.roleUids));
+
     if (uniqueRoleUids.length) {
-      const rows = uniqueRoleUids.map((roleUid) =>
-        this.userRoleRepository.create({ userId, roleId: roleUid }),
-      );
-      await this.userRoleRepository.save(rows);
+      const existing = await this.roleRepository.find({
+        where: { uid: In(uniqueRoleUids) },
+        select: ['uid'],
+      });
+      const existingUids = new Set(existing.map((r) => r.uid));
+      const missing = uniqueRoleUids.filter((uid) => !existingUids.has(uid));
+      if (missing.length) {
+        throw new BusinessException(AccessErrorCode.RBAC_ROLE_NOT_FOUND, {
+          uid: missing.join(','),
+        });
+      }
     }
+
+    // 在单个事务内「先删旧绑定再写新绑定」，避免 delete 后 save 失败留下空授权。
+    await this.dataSource.transaction(async (manager) => {
+      await manager.delete(UserRole, { userId });
+      if (uniqueRoleUids.length) {
+        const rows = uniqueRoleUids.map((roleUid) =>
+          manager.create(UserRole, { userId, roleId: roleUid }),
+        );
+        await manager.save(rows);
+      }
+    });
 
     await this.invalidateUserPerms(userId);
   }
 
-  /** 获取用户所拥有的角色 uid 列表。 */
+  /**
+   * 获取用户所拥有的「有效」角色 uid 列表。
+   *
+   * 仅返回未软删（deletedAt IS NULL）且已启用（enabled = true）的角色，
+   * 失效/禁用角色在权限聚合时被忽略。
+   */
   async getRoleUidsForUser(userId: string): Promise<string[]> {
-    const rows = await this.userRoleRepository.find({ where: { userId } });
-    return rows.map((r) => r.roleId);
+    const rows = await this.userRoleRepository
+      .createQueryBuilder('ur')
+      .innerJoin(
+        Role,
+        'r',
+        'r.uid = ur.role_id AND r.deleted_at IS NULL AND r.enabled = :enabled',
+        { enabled: true },
+      )
+      .where('ur.user_id = :userId', { userId })
+      .select('ur.role_id', 'roleId')
+      .getRawMany<{ roleId: string }>();
+    return Array.from(new Set(rows.map((r) => r.roleId)));
   }
 
   /** 获取用户可见的菜单 uid 列表（去重）。 */
@@ -228,6 +313,45 @@ export class RoleService {
       RBAC_CACHE.USER_PERMS_TTL,
       RBAC_CACHE.NAMESPACE,
     );
+  }
+
+  /**
+   * 判断用户是否拥有「有效」的超级管理员角色。
+   *
+   * 仅统计未软删且已启用的 SUPER_ADMIN 角色绑定。供运行时全权限豁免使用。
+   */
+  async isSuperAdmin(userId: string): Promise<boolean> {
+    const count = await this.userRoleRepository
+      .createQueryBuilder('ur')
+      .innerJoin(
+        Role,
+        'r',
+        'r.uid = ur.role_id AND r.deleted_at IS NULL AND r.enabled = :enabled AND r.code = :code',
+        { enabled: true, code: SUPER_ADMIN_ROLE_CODE },
+      )
+      .where('ur.user_id = :userId', { userId })
+      .getCount();
+    return count > 0;
+  }
+
+  /**
+   * 统计系统内「有效超级管理员」账号数量。
+   *
+   * 即被授予未软删、已启用的 SUPER_ADMIN 角色的去重用户数。
+   * 供「最后一个超管保护」判断使用。
+   */
+  async countEnabledSuperAdmins(): Promise<number> {
+    const rows = await this.userRoleRepository
+      .createQueryBuilder('ur')
+      .innerJoin(
+        Role,
+        'r',
+        'r.uid = ur.role_id AND r.deleted_at IS NULL AND r.enabled = :enabled AND r.code = :code',
+        { enabled: true, code: SUPER_ADMIN_ROLE_CODE },
+      )
+      .select('DISTINCT ur.user_id', 'userId')
+      .getRawMany<{ userId: string }>();
+    return rows.length;
   }
 
   /** 失效单个用户的权限码缓存。 */

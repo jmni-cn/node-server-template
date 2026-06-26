@@ -1,4 +1,4 @@
-import { Entity, Column } from 'typeorm';
+import { Entity, Column, Index } from 'typeorm';
 import { BaseEntity } from '@core/database';
 import { TaskStatus } from '../constants';
 
@@ -11,6 +11,23 @@ import { TaskStatus } from '../constants';
 @Entity('tasks')
 export class Task extends BaseEntity {
   protected static override uidPrefix = 'task';
+
+  /**
+   * 幂等键（可空，唯一索引）：业务侧用于跨「创建 + 入队」去重。
+   *
+   * 当不同请求携带相同 dedupKey 时，DB 唯一约束保证只会落库一条任务；
+   * 配合入队时设置 jobId 实现跨完成态的队列级去重。NULL 不参与唯一约束冲突
+   * （MySQL 唯一索引允许多个 NULL）。
+   */
+  @Index('uq_tasks_dedup_key', { unique: true })
+  @Column({
+    type: 'varchar',
+    length: 191,
+    name: 'dedup_key',
+    nullable: true,
+    comment: '幂等键（唯一，可空）：用于跨创建+入队去重',
+  })
+  dedupKey: string | null;
 
   @Column({ type: 'varchar', length: 255, comment: '任务名称' })
   name: string;
@@ -66,4 +83,44 @@ export class Task extends BaseEntity {
 
   @Column({ type: 'text', nullable: true, comment: '错误信息' })
   error: string | null;
+
+  /**
+   * 已投递时间（可空）：直接投递成功或 dispatcher 兜底投递后写入。
+   *
+   * 用于「PENDING 扫描兜底」判定——dispatcher 仅捞取尚未投递（NULL）或投递已超过
+   * 租约宽限期（视为投递可能丢失）的任务，避免对刚入队的任务重复投递。
+   */
+  @Column({
+    type: 'datetime',
+    name: 'dispatched_at',
+    nullable: true,
+    comment: '已投递时间（UTC）：直接投递或 dispatcher 兜底投递后写入',
+  })
+  dispatchedAt: Date | null;
+
+  /**
+   * 认领者标识（可空）：worker 认领任务时写入 workerId / hostname，
+   * 便于 stale 恢复时排查是哪个 worker 持有但未完成。
+   */
+  @Column({
+    type: 'varchar',
+    length: 191,
+    name: 'locked_by',
+    nullable: true,
+    comment: '认领者标识（workerId / hostname）',
+  })
+  lockedBy: string | null;
+
+  /**
+   * 认领时间（可空）：worker 认领任务时写入 NOW()。
+   *
+   * stale 恢复扫描以此判定 RUNNING 任务是否「卡死」（lockedAt 早于 now-staleMinutes）。
+   */
+  @Column({
+    type: 'datetime',
+    name: 'locked_at',
+    nullable: true,
+    comment: '认领时间（UTC）：用于 stale 卡死任务恢复判定',
+  })
+  lockedAt: Date | null;
 }

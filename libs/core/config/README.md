@@ -7,7 +7,8 @@ Centralized configuration: wraps `@nestjs/config`, loads namespaces, Joi-validat
 reads `env/<APP_NAME>.local.env` in development, real env in production.
 
 ## Namespaces
-`app`, `database` (MySQL), `redis`, `jwt` (access+refresh), `sso` (OIDC issuer/clientId/secret/redirect/scope),
+`app`, `database` (MySQL), `redis`, `jwt` (access+refresh),
+`security` (login lockout + IP auto-ban thresholds), `sso` (OIDC issuer/clientId/secret/redirect/scope),
 `queue` (BullMQ redis connection + concurrency), `logger`, `i18n`.
 
 Each exports `xxxConfig` (`registerAs`), `xxxConfigSchema` (Joi fragment) and `XxxConfigType`.

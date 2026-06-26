@@ -16,7 +16,7 @@ import {
   PageResultVo,
   PaginationDto,
 } from '@core/common';
-import { Permissions } from '@platform/auth';
+import { CurrentAdminUser, Permissions } from '@platform/auth';
 import { OperationLogDecorator } from '@platform/audit';
 import { AdminUserVo } from '@domains/identity';
 
@@ -73,10 +73,11 @@ export class AdministratorsController {
   @OperationLogDecorator({ action: 'UPDATE_ADMIN', module: 'Administrators' })
   @ApiBaseResponse(AdminUserVo)
   update(
+    @CurrentAdminUser('sub') operatorUid: string,
     @Param('uid') uid: string,
     @Body() dto: UpdateAdministratorDto,
   ): Promise<AdminUserVo> {
-    return this.administratorsService.update(uid, dto);
+    return this.administratorsService.update(operatorUid, uid, dto);
   }
 
   @Put(':uid/roles')
@@ -88,10 +89,11 @@ export class AdministratorsController {
   })
   @ApiSuccessResponse()
   assignRoles(
+    @CurrentAdminUser('sub') operatorUid: string,
     @Param('uid') uid: string,
     @Body() dto: AssignAdministratorRolesDto,
   ): Promise<void> {
-    return this.administratorsService.assignRoles(uid, dto.roleUids);
+    return this.administratorsService.assignRoles(operatorUid, uid, dto.roleUids);
   }
 
   @Put(':uid/password')
@@ -103,9 +105,14 @@ export class AdministratorsController {
   })
   @ApiSuccessResponse()
   resetPassword(
+    @CurrentAdminUser('sub') operatorUid: string,
     @Param('uid') uid: string,
     @Body() dto: ResetAdministratorPasswordDto,
   ): Promise<void> {
-    return this.administratorsService.resetPassword(uid, dto.newPassword);
+    return this.administratorsService.resetPassword(
+      operatorUid,
+      uid,
+      dto.newPassword,
+    );
   }
 }

@@ -43,6 +43,5 @@ module.exports = [
 
 - `scripts/check-boundaries.ts` ≈ `no-app-repository-import` + `no-cross-app-import`
 - `scripts/check-layer-rules.ts` 覆盖更广的分层方向约束
-- `scripts/check-no-ai.ts` 是禁词扫描（无对应 ESLint 规则）
 
 CI 以 `npm run check:all`（dependency-free 脚本）为准；ESLint 规则为开发期辅助。

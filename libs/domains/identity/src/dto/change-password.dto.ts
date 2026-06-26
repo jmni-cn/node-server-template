@@ -8,8 +8,8 @@ export class ChangePasswordDto {
   @Length(6, 128)
   oldPassword: string;
 
-  @ApiProperty({ description: '新密码', minLength: 6, maxLength: 128 })
+  @ApiProperty({ description: '新密码', minLength: 8, maxLength: 128 })
   @IsString()
-  @Length(6, 128)
+  @Length(8, 128)
   newPassword: string;
 }

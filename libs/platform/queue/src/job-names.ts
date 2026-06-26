@@ -31,4 +31,8 @@ export const JOB_NAMES = {
     /** 清理过期数据 */
     CLEANUP: 'cleanup',
   },
+  DEAD_LETTER: {
+    /** 一条重试耗尽的死信记录（元数据：原队列 / job 名 / 负载 / 失败原因） */
+    RECORD: 'dead-letter-record',
+  },
 } as const;

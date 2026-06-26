@@ -16,9 +16,13 @@ export class AccessCheckService implements AccessChecker {
   /**
    * 判断用户是否拥有给定的全部权限。
    * 空权限列表视为通过。
+   *
+   * 超级管理员（拥有有效 SUPER_ADMIN 角色）运行时豁免，直接放行——
+   * 避免新增权限点后超管因 seed 快照过期而被误拒。
    */
   async hasPermissions(userId: string, perms: string[]): Promise<boolean> {
     if (!perms.length) return true;
+    if (await this.roleService.isSuperAdmin(userId)) return true;
     const codes = await this.roleService.getPermissionCodesForUser(userId);
     return perms.every((p) => codes.includes(p));
   }

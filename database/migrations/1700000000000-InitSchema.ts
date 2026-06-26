@@ -44,6 +44,9 @@ export class InitSchema1700000000000 implements MigrationInterface {
         \`password_version\` int NOT NULL DEFAULT 0 COMMENT 'pv：改密递增使旧 token 失效',
         \`last_login_at\` datetime(6) NULL COMMENT '最后登录时间 (UTC)',
         \`last_login_ip\` varchar(45) NULL COMMENT '最后登录 IP',
+        \`failed_login_count\` int NOT NULL DEFAULT 0 COMMENT '连续登录失败次数（成功登录后清零）',
+        \`locked_until\` datetime(6) NULL COMMENT '账户锁定截止时间 (UTC)；为空或已过期表示未锁定',
+        \`last_failed_login_at\` datetime(6) NULL COMMENT '最后一次登录失败时间 (UTC)',
         PRIMARY KEY (\`id\`),
         UNIQUE INDEX \`UQ_admin_users_uid\` (\`uid\`),
         UNIQUE INDEX \`UQ_admin_users_username\` (\`username\`)
@@ -70,6 +73,9 @@ export class InitSchema1700000000000 implements MigrationInterface {
         \`password_version\` int NOT NULL DEFAULT 0 COMMENT 'pv：改密递增使旧 token 失效',
         \`last_login_at\` datetime(6) NULL COMMENT '最后登录时间 (UTC)',
         \`last_login_ip\` varchar(45) NULL COMMENT '最后登录 IP',
+        \`failed_login_count\` int NOT NULL DEFAULT 0 COMMENT '连续登录失败次数（成功登录后清零）',
+        \`locked_until\` datetime(6) NULL COMMENT '账户锁定截止时间 (UTC)；为空或已过期表示未锁定',
+        \`last_failed_login_at\` datetime(6) NULL COMMENT '最后一次登录失败时间 (UTC)',
         PRIMARY KEY (\`id\`),
         UNIQUE INDEX \`UQ_end_users_uid\` (\`uid\`),
         UNIQUE INDEX \`UQ_end_users_username\` (\`username\`),
@@ -235,6 +241,7 @@ export class InitSchema1700000000000 implements MigrationInterface {
         \`name\` varchar(100) NOT NULL COMMENT '角色名称',
         \`description\` varchar(255) NULL COMMENT '角色描述',
         \`is_system\` tinyint NOT NULL DEFAULT 0 COMMENT '是否系统内置角色（内置角色禁止修改/删除）',
+        \`enabled\` tinyint NOT NULL DEFAULT 1 COMMENT '是否启用（禁用后该角色授予的权限/菜单在聚合时被忽略）',
         PRIMARY KEY (\`id\`),
         UNIQUE INDEX \`UQ_roles_uid\` (\`uid\`),
         UNIQUE INDEX \`UQ_roles_code\` (\`code\`)
@@ -393,7 +400,8 @@ export class InitSchema1700000000000 implements MigrationInterface {
         \`status\` enum('enabled','disabled') NOT NULL DEFAULT 'enabled' COMMENT '状态: enabled/disabled',
         PRIMARY KEY (\`id\`),
         UNIQUE INDEX \`UQ_dictionary_items_uid\` (\`uid\`),
-        INDEX \`IDX_dictionary_items_dict_id\` (\`dict_id\`)
+        INDEX \`IDX_dictionary_items_dict_id\` (\`dict_id\`),
+        UNIQUE INDEX \`uq_dictionary_items_dict_value\` (\`dict_id\`, \`value\`)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='字典项表'
     `);
 
@@ -414,6 +422,13 @@ export class InitSchema1700000000000 implements MigrationInterface {
         \`type\` enum('string','number','boolean','json') NOT NULL DEFAULT 'string' COMMENT '值类型: string/number/boolean/json',
         \`config_group\` varchar(64) NOT NULL DEFAULT 'default' COMMENT '配置分组',
         \`description\` varchar(255) NULL COMMENT '配置描述',
+        \`label\` varchar(100) NULL COMMENT '展示标签（后台列表/表单友好名称）',
+        \`enabled\` tinyint NOT NULL DEFAULT 1 COMMENT '是否启用（禁用后运行期读取回退到 env/默认值）',
+        \`is_secret\` tinyint NOT NULL DEFAULT 0 COMMENT '是否机密（机密值不应写入本表，仅作标志位）',
+        \`is_public\` tinyint NOT NULL DEFAULT 0 COMMENT '是否可对外公开（如下发给前端）',
+        \`is_editable\` tinyint NOT NULL DEFAULT 1 COMMENT '是否允许后台编辑（false 表示只读）',
+        \`source\` enum('seed','manual','api') NOT NULL DEFAULT 'manual' COMMENT '配置来源: seed/manual/api',
+        \`sort\` int NOT NULL DEFAULT 0 COMMENT '排序值（越小越靠前）',
         PRIMARY KEY (\`id\`),
         UNIQUE INDEX \`UQ_system_configs_uid\` (\`uid\`),
         UNIQUE INDEX \`UQ_system_configs_config_key\` (\`config_key\`),
@@ -471,6 +486,7 @@ export class InitSchema1700000000000 implements MigrationInterface {
       CREATE TABLE \`tasks\` (
         \`id\` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID（自增）',
         \`uid\` varchar(32) NOT NULL COMMENT '业务UID（含前缀，如 task_xxx）',
+        \`dedup_key\` varchar(191) NULL COMMENT '幂等键（唯一，可空）：用于跨创建+入队去重',
         \`created_at\` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) COMMENT '创建时间 (UTC)',
         \`updated_at\` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6) COMMENT '更新时间 (UTC)',
         \`deleted_at\` datetime(6) NULL COMMENT '删除时间 (UTC，软删除)',
@@ -488,8 +504,14 @@ export class InitSchema1700000000000 implements MigrationInterface {
         \`started_at\` datetime NULL COMMENT '开始执行时间',
         \`finished_at\` datetime NULL COMMENT '执行结束时间',
         \`error\` text NULL COMMENT '错误信息',
+        \`dispatched_at\` datetime NULL COMMENT '已投递时间（UTC）：直接投递或 dispatcher 兜底投递后写入',
+        \`locked_by\` varchar(191) NULL COMMENT '认领者标识（workerId / hostname）',
+        \`locked_at\` datetime NULL COMMENT '认领时间（UTC）：用于 stale 卡死任务恢复判定',
         PRIMARY KEY (\`id\`),
-        UNIQUE INDEX \`UQ_tasks_uid\` (\`uid\`)
+        UNIQUE INDEX \`UQ_tasks_uid\` (\`uid\`),
+        UNIQUE INDEX \`uq_tasks_dedup_key\` (\`dedup_key\`),
+        INDEX \`IDX_tasks_status_dispatched_at\` (\`status\`, \`dispatched_at\`),
+        INDEX \`IDX_tasks_status_locked_at\` (\`status\`, \`locked_at\`)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='任务表'
     `);
 

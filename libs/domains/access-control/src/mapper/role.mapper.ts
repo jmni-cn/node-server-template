@@ -12,6 +12,7 @@ export class RoleMapper {
       name: role.name,
       description: role.description,
       isSystem: role.isSystem,
+      enabled: role.enabled,
     };
   }
 

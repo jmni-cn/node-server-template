@@ -41,4 +41,11 @@ export class Role extends BaseEntity {
     comment: '是否系统内置角色（内置角色禁止修改/删除）',
   })
   isSystem: boolean;
+
+  @Column({
+    type: 'boolean',
+    default: true,
+    comment: '是否启用（禁用后该角色授予的权限/菜单在聚合时被忽略）',
+  })
+  enabled: boolean;
 }

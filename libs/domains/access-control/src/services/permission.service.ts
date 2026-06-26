@@ -6,7 +6,7 @@
 
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Like, Repository } from 'typeorm';
+import { DataSource, In, Like, Repository } from 'typeorm';
 import {
   BusinessException,
   PageResultVo,
@@ -14,6 +14,7 @@ import {
 } from '@core/common';
 
 import { Permission } from '../entities/permission.entity';
+import { RolePermission } from '../entities/role-permission.entity';
 import { CreatePermissionDto } from '../dto/create-permission.dto';
 import { UpdatePermissionDto } from '../dto/update-permission.dto';
 import { ListPermissionDto } from '../dto/list-permission.dto';
@@ -26,6 +27,7 @@ export class PermissionService {
   constructor(
     @InjectRepository(Permission)
     private readonly permissionRepository: Repository<Permission>,
+    private readonly dataSource: DataSource,
   ) {}
 
   /** 创建权限（编码唯一）。 */
@@ -55,6 +57,23 @@ export class PermissionService {
     if (dto.group !== undefined) permission.group = dto.group;
     const saved = await this.permissionRepository.save(permission);
     return PermissionMapper.toVo(saved);
+  }
+
+  /**
+   * 删除权限点。
+   *
+   * 在事务内先清理 role_permissions 中对该权限的全部授权行，再软删权限本身，
+   * 避免遗留悬空授权。
+   *
+   * 注意：用户权限码缓存（user-perms:*）按 TTL 过期，删除后短暂窗口内仍可能
+   * 命中旧缓存；如需即时生效可由调用方触发角色权限重分配以失效缓存。
+   */
+  async remove(uid: string): Promise<void> {
+    const permission = await this.findByUid(uid);
+    await this.dataSource.transaction(async (manager) => {
+      await manager.delete(RolePermission, { permissionId: permission.uid });
+      await manager.softRemove(permission);
+    });
   }
 
   /** 按 uid 查询权限实体（不存在抛 RBAC_PERMISSION_NOT_FOUND）。 */

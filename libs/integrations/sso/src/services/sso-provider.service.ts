@@ -2,7 +2,7 @@ import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { BusinessException } from '@core/common';
 import { LoggerService } from '@core/logger';
-import { ssoConfig } from '@core/config';
+import { appConfig, ssoConfig } from '@core/config';
 import {
   OidcSsoProvider,
   MicrosoftSsoProvider,
@@ -31,6 +31,8 @@ export class SsoProviderService implements OnModuleInit {
   constructor(
     @Inject(ssoConfig.KEY)
     private readonly cfg: ConfigType<typeof ssoConfig>,
+    @Inject(appConfig.KEY)
+    private readonly app: ConfigType<typeof appConfig>,
     private readonly logger: LoggerService,
   ) {
     this.logger.setContext(SsoProviderService.name);
@@ -39,6 +41,7 @@ export class SsoProviderService implements OnModuleInit {
   onModuleInit(): void {
     // 通用 OIDC：需要 issuer + clientId。
     if (this.cfg.clientId && this.cfg.issuer) {
+      this.assertSecureCallback('oidc', this.cfg.redirectUri);
       this.register(
         new OidcSsoProvider(
           {
@@ -55,17 +58,47 @@ export class SsoProviderService implements OnModuleInit {
 
     // Microsoft Entra：需要 clientId。
     if (this.cfg.microsoft.clientId) {
+      this.assertSecureCallback('microsoft', this.cfg.microsoft.redirectUri);
       this.register(new MicrosoftSsoProvider(this.cfg.microsoft, this.logger));
     }
 
     // KRAFTON（示例 provider）：需要 clientId + oidcHost。
     if (this.cfg.krafton.clientId && this.cfg.krafton.oidcHost) {
+      this.assertSecureCallback('krafton', this.cfg.krafton.redirectUri);
       this.register(new KraftonSsoProvider(this.cfg.krafton, this.logger));
     }
 
     this.logger.log('SSO providers registered', {
       providers: this.list(),
     });
+  }
+
+  /**
+   * 生产环境强制 provider 回调地址为 https（防回调阶段在 production 经明文 http
+   * 传输授权码 / token）。
+   *
+   * 校验放在启动期（onModuleInit）而非每次请求：
+   * - callbackUrl 全部来自服务端配置、与请求无关，启动期一次校验即可覆盖；
+   * - 配置错误在 production 启动时即「fail fast」暴露，零运行时开销，
+   *   且能在任何授权 / 回调发生前拦截；
+   * - 非 production（development / test）允许 http，便于本地联调。
+   *
+   * 空 redirectUri 不在此处校验（由各 provider 注册条件与 config schema 兜底）。
+   */
+  private assertSecureCallback(provider: string, redirectUri: string): void {
+    const isProd = this.app.nodeEnv === 'production';
+    if (!isProd || !redirectUri) {
+      return;
+    }
+    if (!/^https:\/\//i.test(redirectUri)) {
+      this.logger.error('SSO callback must use https in production', {
+        provider,
+        redirectUri,
+      });
+      throw new Error(
+        `SSO provider "${provider}" callbackUrl must use https in production (got: ${redirectUri})`,
+      );
+    }
   }
 
   private register(provider: SsoProviderPort): void {

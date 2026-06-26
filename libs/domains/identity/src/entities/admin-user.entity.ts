@@ -72,5 +72,31 @@ export class AdminUser extends BaseEntity {
   })
   lastLoginIp: string | null;
 
+  @Column({
+    type: 'int',
+    name: 'failed_login_count',
+    default: 0,
+    comment: '连续登录失败次数（成功登录后清零）',
+  })
+  failedLoginCount: number;
+
+  @Column({
+    type: 'datetime',
+    name: 'locked_until',
+    precision: 6,
+    nullable: true,
+    comment: '账户锁定截止时间 (UTC)；为空或已过期表示未锁定',
+  })
+  lockedUntil: Date | null;
+
+  @Column({
+    type: 'datetime',
+    name: 'last_failed_login_at',
+    precision: 6,
+    nullable: true,
+    comment: '最后一次登录失败时间 (UTC)',
+  })
+  lastFailedLoginAt: Date | null;
+
   // 说明：admin_users 为模板维护的固定 schema，勿随业务扩展。
 }

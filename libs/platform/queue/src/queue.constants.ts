@@ -15,6 +15,12 @@ export const QUEUE_NAMES = {
   TASK: 'task',
   /** 系统级任务（清理、聚合、定时） */
   SYSTEM: 'system',
+  /**
+   * 死信队列（DLQ）：job 重试次数耗尽（attemptsMade >= opts.attempts）后，
+   * 将其元数据转投此处，供人工排查 / 重放，避免失败 job 被静默丢弃。
+   * 约定见 references/QUEUE-SPEC.md「Dead-letter queue」。
+   */
+  DEAD_LETTER: 'dead-letter',
 } as const;
 
 /** 队列名称字面量联合类型。 */

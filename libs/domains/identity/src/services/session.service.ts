@@ -14,10 +14,12 @@
  *   REFRESH_REUSE_DETECTED（critical）+ 抛 REFRESH_REUSE_DETECTED。
  */
 
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, MoreThan, Repository } from 'typeorm';
+import { IsNull, MoreThan, Not, Repository } from 'typeorm';
+import type { ConfigType } from '@nestjs/config';
+import { jwtConfig } from '@core/config';
 import { BusinessException } from '@core/common';
 import { UserSession } from '../entities/user-session.entity';
 import { SessionVo } from '../vo/session.vo';
@@ -32,13 +34,37 @@ import type {
 import type { SubjectType } from '../types/subject-type';
 import { IdentityErrorCode } from '../constants/identity-error-codes';
 
+/**
+ * 单主体最大活跃会话数兜底默认值。
+ * 当 jwtConfig 未注入（如孤立单元测试）时使用；正常运行从 jwtConfig.maxActiveSessions 读取。
+ * 与 @core/config 的 JWT_DEFAULTS.MAX_ACTIVE_SESSIONS 保持一致。
+ */
+const DEFAULT_MAX_ACTIVE_SESSIONS = 1;
+
+/** 会话策略兜底默认值（jwtConfig 未注入时使用）。与 JWT_DEFAULTS.SESSION_POLICY 保持一致。 */
+const DEFAULT_SESSION_POLICY: 'replace' | 'limit' = 'replace';
+
 @Injectable()
 export class SessionService {
   constructor(
     @InjectRepository(UserSession)
     private readonly sessionRepository: Repository<UserSession>,
     private readonly securityEventService: SecurityEventService,
+    // 配置可选注入：ConfigModule 全局注册时可解析；孤立测试场景回退到默认常量。
+    @Optional()
+    @Inject(jwtConfig.KEY)
+    private readonly jwtCfg?: ConfigType<typeof jwtConfig>,
   ) {}
+
+  /** 单主体最大活跃会话数（<= 0 表示不限制）。 */
+  private get maxActiveSessions(): number {
+    return this.jwtCfg?.maxActiveSessions ?? DEFAULT_MAX_ACTIVE_SESSIONS;
+  }
+
+  /** 会话策略（replace=全局单会话；limit=保留最近 N 个）。 */
+  private get sessionPolicy(): 'replace' | 'limit' {
+    return this.jwtCfg?.policy ?? DEFAULT_SESSION_POLICY;
+  }
 
   /** 创建会话（写入 tokenHash + tokenFamilyId；family 缺省自动生成）。 */
   async create(input: CreateSessionInput): Promise<UserSession> {
@@ -61,7 +87,121 @@ export class SessionService {
       lastSeenAt: new Date(),
       expiresAt: input.expiresAt,
     });
-    return this.sessionRepository.save(session);
+    const saved = await this.sessionRepository.save(session);
+
+    // 登录建会话后应用会话策略（replace=全局单会话 / limit=最近 N 个）。
+    // 注意：仅 create（登录/注册/SSO 登录）路径触发；rotateSession（refresh 轮换）不调用本方法。
+    await this.applySessionPolicy(input.subjectType, input.userId, saved.uid);
+
+    return saved;
+  }
+
+  /**
+   * 应用会话策略（仅登录建会话时调用）。
+   * - replace：作废该主体除当前新会话外的全部活跃会话（全局单会话）。
+   * - limit：保留最近 maxActiveSessions 个，超出按最旧驱逐。
+   */
+  private async applySessionPolicy(
+    subjectType: SubjectType,
+    userId: string,
+    currentUid: string,
+  ): Promise<void> {
+    if (this.sessionPolicy === 'replace') {
+      await this.replaceOtherActiveSessions(subjectType, userId, currentUid);
+    } else {
+      await this.enforceMaxActiveSessions(subjectType, userId);
+    }
+  }
+
+  /**
+   * replace 策略：作废该主体「未撤销且未过期」的其它所有活跃会话，
+   * 仅保留当前新建会话（currentUid），撤销原因 'replaced_by_new_login'。
+   * 每个被替换会话记一条 SESSION_REVOKED 安全事件。
+   */
+  private async replaceOtherActiveSessions(
+    subjectType: SubjectType,
+    userId: string,
+    currentUid: string,
+  ): Promise<void> {
+    const now = new Date();
+    const others = await this.sessionRepository.find({
+      where: {
+        subjectType,
+        userId,
+        uid: Not(currentUid),
+        revokedAt: IsNull(),
+        expiresAt: MoreThan(now),
+      },
+    });
+    if (others.length === 0) return;
+
+    for (const s of others) {
+      s.revokedAt = now;
+      s.revokedReason = 'replaced_by_new_login';
+    }
+    await this.sessionRepository.save(others);
+
+    for (const s of others) {
+      await this.securityEventService.record({
+        subjectType,
+        userId,
+        sessionUid: s.uid,
+        eventType: 'SESSION_REVOKED',
+        riskLevel: 'low',
+        metadata: { reason: 'replaced_by_new_login' },
+      });
+    }
+  }
+
+  /**
+   * 并发会话上限控制（limit 策略）。
+   *
+   * 统计该主体（subjectType + userId）「未撤销且未过期」的活跃会话，
+   * 若超过上限 N，则按 createdAt 升序撤销最旧的多余会话
+   * （revoke + revokedReason='max_sessions_evicted'），仅保留最近 N 个。
+   * 上限 <= 0 表示不限制。
+   *
+   * 被驱逐的会话另记一条 SESSION_REVOKED 安全事件，便于审计与风控。
+   */
+  private async enforceMaxActiveSessions(
+    subjectType: SubjectType,
+    userId: string,
+  ): Promise<void> {
+    const max = this.maxActiveSessions;
+    if (max <= 0) return;
+
+    const now = new Date();
+    const activeSessions = await this.sessionRepository.find({
+      where: {
+        subjectType,
+        userId,
+        revokedAt: IsNull(),
+        expiresAt: MoreThan(now),
+      },
+      // 最旧的排在前面，便于截取需要驱逐的部分。
+      order: { createdAt: 'ASC', id: 'ASC' },
+    });
+
+    if (activeSessions.length <= max) return;
+
+    const toEvict = activeSessions.slice(0, activeSessions.length - max);
+    for (const evicted of toEvict) {
+      evicted.revokedAt = now;
+      evicted.revokedReason = 'max_sessions_evicted';
+    }
+    await this.sessionRepository.save(toEvict);
+
+    // 记录安全事件（record 内部已吞异常，不影响登录主流程）。
+    for (const evicted of toEvict) {
+      await this.securityEventService.record({
+        subjectType,
+        userId,
+        sessionUid: evicted.uid,
+        eventType: 'SESSION_REVOKED',
+        riskLevel: 'low',
+        metadata: { reason: 'max_sessions_evicted', maxActiveSessions: max },
+      });
+    }
   }
 
   /** 按主体 + jti 查询会话（不存在返回 null）。 */

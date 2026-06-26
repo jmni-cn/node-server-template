@@ -36,6 +36,9 @@ export class ProviderProfileNormalizerService {
       this.asString(raw.avatar);
 
     const email = this.asString(raw.email);
+    // OIDC email_verified 声明：兼容布尔 true 与字符串 'true'（部分 IdP 以字符串返回）。
+    const emailVerified =
+      raw.email_verified === true || raw.email_verified === 'true';
 
     const nickname =
       this.asString(raw.nickname) ??
@@ -61,6 +64,7 @@ export class ProviderProfileNormalizerService {
       provider,
       providerUserId,
       email,
+      emailVerified,
       nickname,
       username,
       avatar,

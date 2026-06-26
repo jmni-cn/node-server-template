@@ -1,12 +1,22 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { createPageResult } from '@core/common';
+import { assertSortWhitelist, createPageResult } from '@core/common';
 import type { PageResultVo } from '@core/common';
 import { Task, TaskLog } from '../entities';
 import { TaskMapper } from '../mapper';
 import type { TaskListItemVo } from '../vo';
 import type { TaskQueryParams } from '../types';
+
+/** 任务列表允许排序的字段白名单（防任意字段排序 / SQL 注入）。 */
+const TASK_SORT_WHITELIST = [
+  'createdAt',
+  'updatedAt',
+  'scheduledAt',
+  'startedAt',
+  'finishedAt',
+  'status',
+] as const;
 
 /**
  * 任务查询服务：列表分页查询与日志读取（只读）。
@@ -36,7 +46,9 @@ export class TaskQueryService {
       qb.andWhere('task.status = :status', { status: params.status });
     }
 
-    qb.orderBy('task.createdAt', 'DESC')
+    const sortBy =
+      assertSortWhitelist(params.sortBy, TASK_SORT_WHITELIST) ?? 'createdAt';
+    qb.orderBy(`task.${sortBy}`, params.order ?? 'DESC')
       .skip((page - 1) * pageSize)
       .take(pageSize);
 

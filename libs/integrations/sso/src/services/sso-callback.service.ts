@@ -5,6 +5,7 @@ import {
   generateLowercaseUid,
 } from '@core/common';
 import { LoggerService } from '@core/logger';
+import { RuntimeConfigService } from '@platform/config';
 import {
   QueueProducer,
   QUEUE_NAMES,
@@ -26,9 +27,13 @@ import {
 
 import { SsoProviderService } from './sso-provider.service';
 import { ProviderProfileNormalizerService } from './provider-profile-normalizer.service';
-import { SsoStateService } from './sso-state.service';
-import { SsoErrorCode } from '../constants';
-import type { NormalizedProfile } from '../types/sso-provider.port';
+import { SsoStateService, type SsoStatePayload } from './sso-state.service';
+import { OidcSsoProvider } from '../providers';
+import { SsoErrorCode, SSO_CONFIG_KEYS } from '../constants';
+import type {
+  NormalizedProfile,
+  SsoTokenSet,
+} from '../types/sso-provider.port';
 
 /** 回调返回的规范化登录主体（最小集合，供 app 层重载完整主体）。 */
 export interface SsoCallbackPrincipal {
@@ -43,6 +48,28 @@ export interface SsoCallbackOptions {
   redirectUri?: string;
   subjectType: SubjectType;
 }
+
+/** 登录意图（intent==='login'）回调结果。 */
+export interface SsoLoginCallbackResult {
+  intent: 'login';
+  user: SsoCallbackPrincipal;
+  isNewUser: boolean;
+}
+
+/** 绑定意图（intent==='bind'）回调结果：仅绑定，不签发会话。 */
+export interface SsoBindCallbackResult {
+  intent: 'bind';
+  /** 被绑定到的已登录主体类型。 */
+  subjectType: SubjectType;
+  /** 被绑定到的已登录主体 UID。 */
+  userId: string;
+  provider: string;
+  /** 经验证的第三方用户唯一标识。 */
+  providerUserId: string;
+}
+
+/** 回调结果（登录 / 绑定二选一，按 state.intent 分流）。 */
+export type SsoCallbackResult = SsoLoginCallbackResult | SsoBindCallbackResult;
 
 /**
  * SSO 回调编排（subjectType 感知）：code 换 token → 拉取 userinfo → 归一化 →
@@ -66,6 +93,8 @@ export class SsoCallbackService {
     private readonly securityEventService: SecurityEventService,
     private readonly queueProducer: QueueProducer,
     private readonly logger: LoggerService,
+    // 运行期配置读取（DB 覆盖 → 代码默认，fail-safe，热更新）。
+    private readonly runtimeConfig: RuntimeConfigService,
   ) {
     this.logger.setContext(SsoCallbackService.name);
   }
@@ -95,13 +124,13 @@ export class SsoCallbackService {
     provider: string,
     code: string,
     opts: SsoCallbackOptions,
-  ): Promise<{ user: SsoCallbackPrincipal; isNewUser: boolean }> {
+  ): Promise<SsoCallbackResult> {
     const subjectType = opts.subjectType;
 
-    // 1. 校验并消费 state（防 CSRF）。失败记录安全事件后重抛。
-    let redirectUri: string | undefined;
+    // 1. 原子校验并消费 state（防 CSRF / 重放）。失败记录安全事件后重抛。
+    let statePayload: SsoStatePayload;
     try {
-      ({ redirectUri } = await this.stateService.consume(provider, opts.state));
+      statePayload = await this.stateService.consume(provider, opts.state);
     } catch (err) {
       await this.securityEventService.record({
         subjectType,
@@ -115,9 +144,33 @@ export class SsoCallbackService {
 
     const adapter = this.providerService.resolve(provider);
 
-    const tokenSet = await adapter.exchangeCode(code, redirectUri);
+    // OIDC provider：用 state 绑定的 PKCE code_verifier 换 token，并按 nonce 校验 id_token。
+    // redirectUri 不再来自客户端/state，由 adapter 回退到 provider 配置的固定 callbackUrl
+    // （防 open-redirect）。
+    let tokenSet: SsoTokenSet;
+    if (adapter instanceof OidcSsoProvider) {
+      tokenSet = await adapter.exchangeCodeForTokens({
+        code,
+        codeVerifier: statePayload.codeVerifier,
+      });
+      if (tokenSet.idToken && statePayload.nonce) {
+        // 校验 id_token 签名与 nonce（失败抛错，阻断重放/注入）。
+        await adapter.verifyIdToken({
+          idToken: tokenSet.idToken,
+          nonce: statePayload.nonce,
+        });
+      }
+    } else {
+      tokenSet = await adapter.exchangeCode(code);
+    }
+
     const raw = await adapter.fetchUserInfo(tokenSet);
     const profile = this.normalizer.normalize(provider, raw);
+
+    // 绑定意图：把经验证的外部身份绑定到 state 携带的已登录主体，不登录、不开户。
+    if (statePayload.intent === 'bind') {
+      return this.handleBind(provider, statePayload, profile);
+    }
 
     const { principal, isNewUser } =
       subjectType === 'admin'
@@ -143,7 +196,67 @@ export class SsoCallbackService {
       isNewUser,
     });
 
-    return { user: principal, isNewUser };
+    return { intent: 'login', user: principal, isNewUser };
+  }
+
+  /**
+   * 绑定意图回调处理（intent==='bind'）：
+   * - 主体由授权阶段写入 state 的 {@link SsoStatePayload.bindSubjectType} /
+   *   {@link SsoStatePayload.bindUserId} 决定（服务端持有，客户端不可篡改）；
+   * - 用回调验证得到的 providerUserId 调 ExternalIdentityService.link 绑定到该主体，
+   *   link 内部已做「已被他人绑定」校验并记录 EXTERNAL_IDENTITY_LINKED 安全事件；
+   * - **不创建会话、不登录、不开户**。
+   *
+   * 绑定后入队 SSO 资料同步任务（与登录路径一致，异步补全资料快照）。
+   */
+  private async handleBind(
+    provider: string,
+    statePayload: SsoStatePayload,
+    profile: NormalizedProfile,
+  ): Promise<SsoBindCallbackResult> {
+    const bindSubjectType = statePayload.bindSubjectType;
+    const bindUserId = statePayload.bindUserId;
+    // state 由本服务签发，绑定意图必然携带主体；缺失视为状态被篡改/损坏。
+    if (!bindSubjectType || !bindUserId) {
+      await this.securityEventService.record({
+        subjectType: bindSubjectType ?? 'user',
+        userId: bindUserId ?? null,
+        eventType: 'SSO_STATE_MISMATCH',
+        riskLevel: 'high',
+        metadata: { provider, reason: 'bind_state_missing_subject' },
+      });
+      throw new BusinessException(SsoErrorCode.SSO_STATE_MISMATCH);
+    }
+
+    // link 内部：已绑定到他人抛 USER_EXTERNAL_IDENTITY_LINKED，
+    // 绑定成功记录 EXTERNAL_IDENTITY_LINKED 安全事件（此处不重复记）。
+    await this.link(bindSubjectType, bindUserId, profile);
+
+    await this.queueProducer.enqueue(
+      QUEUE_NAMES.SSO_SYNC,
+      JOB_NAMES.SSO_SYNC.SYNC_PROFILE,
+      {
+        subjectType: bindSubjectType,
+        provider,
+        externalId: profile.providerUserId,
+        sub: bindUserId,
+      } satisfies SsoSyncJobData,
+    );
+
+    this.logger.log('SSO callback handled (bind)', {
+      provider,
+      subjectType: bindSubjectType,
+      userUid: bindUserId,
+      providerUserId: profile.providerUserId,
+    });
+
+    return {
+      intent: 'bind',
+      subjectType: bindSubjectType,
+      userId: bindUserId,
+      provider,
+      providerUserId: profile.providerUserId,
+    };
   }
 
   /**
@@ -165,7 +278,9 @@ export class SsoCallbackService {
       return { principal: this.toPrincipal(admin), isNewUser: false };
     }
 
-    if (profile.email) {
+    // 仅当 IdP 已验证邮箱（email_verified===true）才允许按邮箱自动绑定到已有管理员，
+    // 否则攻击者可用未验证的同名邮箱劫持账号。
+    if (profile.email && profile.emailVerified) {
       const admin = await this.adminUserService.findByEmail(profile.email);
       if (admin) {
         await this.link('admin', admin.uid, profile);
@@ -205,6 +320,9 @@ export class SsoCallbackService {
       return { principal: this.toPrincipal(user), isNewUser: false };
     }
 
+    // 未匹配到已有用户 → 进入自动开户前的策略闸门。
+    await this.assertAutoRegisterAllowed(provider, profile);
+
     const created = await this.registerService.registerFromSso({
       username: this.deriveUsername(profile),
       nickname: profile.nickname,
@@ -221,6 +339,51 @@ export class SsoCallbackService {
       },
       isNewUser: true,
     };
+  }
+
+  /**
+   * 终端用户 SSO 自动开户策略闸门（仅在未匹配到已有用户时调用）：
+   * 1. allow_auto_register=false → 抛 SSO_AUTO_REGISTER_DISABLED；
+   * 2. 配置了邮箱域白名单（allowed_email_domains 非空）时：
+   *    - 无邮箱，或邮箱域不在白名单 → 抛 SSO_EMAIL_DOMAIN_NOT_ALLOWED。
+   * 未配置白名单（默认）时不做域校验，保持兼容。
+   *
+   * 策略键运行期从 SSO_CONFIG_KEYS.*（DB 覆盖 → 代码默认）解析，可热更新；
+   * 默认值由注册表（registerConfigDefinitions）提供，无需在此传入。
+   */
+  private async assertAutoRegisterAllowed(
+    provider: string,
+    profile: NormalizedProfile,
+  ): Promise<void> {
+    const allowAutoRegister = await this.runtimeConfig.getBoolean(
+      SSO_CONFIG_KEYS.ALLOW_AUTO_REGISTER,
+    );
+    if (!allowAutoRegister) {
+      this.logger.warn('SSO auto-register disabled, rejecting new user', {
+        provider,
+        providerUserId: profile.providerUserId,
+      });
+      throw new BusinessException(SsoErrorCode.SSO_AUTO_REGISTER_DISABLED, {
+        provider,
+      });
+    }
+
+    const allowedDomains = await this.runtimeConfig.getJson<string[]>(
+      SSO_CONFIG_KEYS.ALLOWED_EMAIL_DOMAINS,
+    );
+    if (allowedDomains.length > 0) {
+      const domain = profile.email?.split('@')[1]?.toLowerCase() ?? '';
+      if (!domain || !allowedDomains.includes(domain)) {
+        this.logger.warn('SSO email domain not allowed for auto-register', {
+          provider,
+          domain: domain || '(none)',
+        });
+        throw new BusinessException(
+          SsoErrorCode.SSO_EMAIL_DOMAIN_NOT_ALLOWED,
+          { provider, domain },
+        );
+      }
+    }
   }
 
   /** 主体实体（含 uid/username/passwordVersion）→ 规范化登录主体。 */

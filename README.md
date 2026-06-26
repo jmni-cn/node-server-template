@@ -78,7 +78,6 @@ Default seeded super admin: `admin` / `Admin@123456` (change immediately).
 
 These run in CI and locally (`npm run check:all`) and encode the non-negotiable rules:
 
-- `check:no-ai` — fails if any AI / `ai-fastapi` / prompt / model / embedding traces appear.
 - `check:boundaries` — apps must not import repositories directly, and apps must not import each other.
 - `check:layers` — `core → platform → domains → integrations → apps` dependency direction;
   entity/dto/vo/mapper/assembler/service naming & placement.

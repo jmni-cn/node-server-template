@@ -64,7 +64,7 @@ export const PERMISSION_SEEDS: PermissionSeed[] = [
   { code: 'rbac:permission:read', name: '权限-查看', group: 'rbac' },
   { code: 'rbac:permission:create', name: '权限-创建', group: 'rbac' },
   { code: 'rbac:permission:update', name: '权限-更新', group: 'rbac' },
-  { code: 'rbac:permission:delete', name: '权限-删除', group: 'rbac' }, // [未接线]
+  { code: 'rbac:permission:delete', name: '权限-删除', group: 'rbac' },
   // RBAC — 菜单（/admin/menus）
   { code: 'rbac:menu:read', name: '菜单-查看', group: 'rbac' },
   { code: 'rbac:menu:create', name: '菜单-创建', group: 'rbac' },

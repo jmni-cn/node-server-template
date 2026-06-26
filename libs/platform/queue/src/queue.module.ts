@@ -29,6 +29,11 @@ export class QueueModule {
           port: cfg.connection.port,
           password: cfg.connection.password,
           db: cfg.connection.db,
+          // BullMQ 阻塞命令（如 BRPOPLPUSH）要求 maxRetriesPerRequest=null，
+          // 否则 ioredis 默认重试上限会在断连时抛错中断 worker。
+          maxRetriesPerRequest: null,
+          // 断连后指数退避重连（上限 2s），避免 Redis 抖动导致进程崩溃。
+          retryStrategy: (times: number) => Math.min(times * 200, 2000),
         },
         defaultJobOptions: {
           attempts: 3,

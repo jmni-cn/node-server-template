@@ -22,6 +22,10 @@ export interface OperationLogQueryParams {
   page?: number;
   /** 每页数量 */
   pageSize?: number;
+  /** 排序字段（由 service 用 assertSortWhitelist 校验白名单） */
+  sortBy?: string;
+  /** 排序方向（默认 DESC） */
+  order?: 'ASC' | 'DESC';
 }
 
 /**

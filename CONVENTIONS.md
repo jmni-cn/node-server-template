@@ -200,5 +200,5 @@ Shared keys: NODE_ENV, APP_NAME, DB_*, REDIS_*, JWT_SECRET, JWT_REFRESH_SECRET, 
 
 Any of these strings/concepts in code, deps, docs, env, docker: `ai-fastapi`, `openai`,
 `embedding`, `prompt`, `model-provider`, `rag`, `llm`, `cs-domain`, customer-support
-ticket logic, article-domain, tenant-domain, rule-engine, pas. `check-no-ai.ts` scans for
-these and CI fails on hits.
+ticket logic, article-domain, tenant-domain, rule-engine, pas. Reject any such token
+in code review.

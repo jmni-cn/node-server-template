@@ -26,8 +26,8 @@ export class CreateAdminUserDto {
   @MaxLength(50)
   nickname?: string;
 
-  @ApiProperty({ description: '明文密码', minLength: 6, maxLength: 128 })
+  @ApiProperty({ description: '明文密码', minLength: 8, maxLength: 128 })
   @IsString()
-  @Length(6, 128)
+  @Length(8, 128)
   password: string;
 }

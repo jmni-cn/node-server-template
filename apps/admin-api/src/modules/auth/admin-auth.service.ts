@@ -1,10 +1,13 @@
 import { randomUUID } from 'node:crypto';
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
+import type { ConfigType } from '@nestjs/config';
+import { jwtConfig } from '@core/config';
 import { BusinessException } from '@core/common';
 import { RequestContextService } from '@core/request-context';
 import {
   TokenService,
   TokenBlacklistService,
+  parseExpiresIn,
   type AdminAuthUser,
   type RefreshAuthUser,
 } from '@platform/auth';
@@ -23,8 +26,14 @@ import { AdminLoginDto } from './dto';
 /** 管理端主体类型（管理员）。 */
 const SUBJECT = 'admin' as const;
 
-/** Access token 黑名单保留时长（7 天，单位：秒）。 */
-const BLACKLIST_TTL_SECONDS = 7 * 24 * 60 * 60;
+/**
+ * Access token 黑名单 TTL 兜底默认值（jwtConfig 未注入时使用，如孤立单元测试）。
+ *
+ * 黑名单只需覆盖到 access token 自然过期即可，因此 TTL 取 access token 配置过期时长
+ * （jwtConfig.accessExpiresIn）。该常量与 @core/config 的 JWT_DEFAULTS.ACCESS_EXPIRES_IN
+ * ('15m' = 900s) 保持一致，仅在无法读取配置时兜底，作为 TTL 上限。
+ */
+const DEFAULT_BLACKLIST_TTL_SECONDS = 15 * 60;
 
 /**
  * 已签发的会话令牌组合（应用服务内部返回结构）。
@@ -56,7 +65,32 @@ export class AdminAuthService {
     private readonly securityEventService: SecurityEventService,
     private readonly tokenService: TokenService,
     private readonly tokenBlacklist: TokenBlacklistService,
+    // 配置可选注入：ConfigModule 全局注册时可解析；孤立测试场景回退到默认常量。
+    @Optional()
+    @Inject(jwtConfig.KEY)
+    private readonly jwtCfg?: ConfigType<typeof jwtConfig>,
   ) {}
+
+  /**
+   * 计算 access token 黑名单 TTL（秒）。
+   *
+   * 黑名单只需覆盖到 access token 自然过期：
+   * - 若传入有效的 access token 过期时间戳（exp，秒），取 max(exp - now, 0)；
+   * - 否则回退到配置的 access 过期时长（jwtConfig.accessExpiresIn 解析为秒），
+   *   再退化到保守兜底常量。
+   *
+   * 相比固定 7 天 TTL，按 access token 自然过期设置更精确，且显著节省 Redis。
+   */
+  private resolveBlacklistTtlSeconds(exp?: number): number {
+    if (typeof exp === 'number' && Number.isFinite(exp)) {
+      const remaining = exp - Math.floor(Date.now() / 1000);
+      return Math.max(remaining, 0);
+    }
+    const accessExpiresIn = this.jwtCfg?.accessExpiresIn;
+    return accessExpiresIn
+      ? parseExpiresIn(accessExpiresIn)
+      : DEFAULT_BLACKLIST_TTL_SECONDS;
+  }
 
   /** 管理员登录：校验凭证 + 读取角色/权限 + 签发令牌并落库会话。 */
   async login(dto: AdminLoginDto): Promise<AuthSession> {
@@ -166,8 +200,11 @@ export class AdminAuthService {
     if (session) {
       await this.sessionService.revoke(session.uid, 'admin_logout');
     }
-    // 将当前 access token 的 jti 加入黑名单直至其过期（按会话 TTL 上限）。
-    await this.tokenBlacklist.blacklist(user.jti, BLACKLIST_TTL_SECONDS);
+    // 将当前 access token 的 jti 加入黑名单，TTL 取 access token 剩余自然过期时长。
+    await this.tokenBlacklist.blacklist(
+      user.jti,
+      this.resolveBlacklistTtlSeconds(user.exp),
+    );
     await this.securityEventService.record({
       subjectType: SUBJECT,
       userId: user.sub,

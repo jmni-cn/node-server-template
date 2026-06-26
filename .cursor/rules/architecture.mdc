@@ -71,5 +71,5 @@ repository from an app "to get it working". (Enforced by
 
 This template contains **no** AI/`ai-fastapi`/`openai`/model-provider/`embedding`/
 RAG/`llm` material, and no removed business domains (customer-support, article,
-tenant, rule-engine). `npm run check:no-ai` (`scripts/check-no-ai.ts`) fails CI on
-any such token in code, deps, docs, env, or docker.
+tenant, rule-engine). Keep it that way: such tokens must not appear in code, deps,
+docs, env, or docker; reject them in code review.

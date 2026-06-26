@@ -1,9 +1,11 @@
 import type { NestFastifyApplication } from '@nestjs/platform-fastify';
 import { LoggingInterceptor, TransformInterceptor } from '@core/common';
 import { LoggerService } from '@core/logger';
+import { UserContextInterceptor } from '@platform/auth';
 
 /**
  * 注册全局拦截器：
+ * - UserContextInterceptor：鉴权后将 sub/username/jti 回填请求上下文；
  * - LoggingInterceptor：请求/响应日志；
  * - TransformInterceptor：统一响应信封。
  *
@@ -16,6 +18,7 @@ export async function setupGlobalInterceptors(
   const logger = await app.resolve(LoggerService);
   logger.setContext('HTTP');
   app.useGlobalInterceptors(
+    new UserContextInterceptor(),
     new LoggingInterceptor(logger),
     new TransformInterceptor(),
   );

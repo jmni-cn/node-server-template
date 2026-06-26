@@ -65,6 +65,7 @@ export class UserAuthController {
   @RateLimit({ windowMs: 60_000, max: 10, keyBy: 'ip' })
   @Post('login')
   @ApiOperation({ summary: '用户登录' })
+  @OperationLogDecorator({ action: 'LOGIN', module: 'Auth' })
   @ApiBaseResponse(AuthTokenVo)
   async login(
     @Body() dto: LoginDto,

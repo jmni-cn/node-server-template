@@ -3,6 +3,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { RequestContextService } from './request-context.service';
 import type { RequestContextData } from './request-context.types';
 import { buildRequestContextFromHeaders } from './request-context.util';
+import { resolveGeoLocation } from './geo-location.util';
 
 /**
  * 请求上下文中间件。
@@ -24,6 +25,9 @@ export class RequestContextMiddleware implements NestMiddleware {
     const { requestId, traceId, ip, userAgent, deviceInfo } =
       buildRequestContextFromHeaders(req);
 
+    // 解析地理位置（基于 geoip-lite，可选依赖；未安装时返回全 null，不影响主链路）
+    const geoLocation = resolveGeoLocation(ip);
+
     const contextData: RequestContextData = {
       requestId,
       traceId,
@@ -31,6 +35,7 @@ export class RequestContextMiddleware implements NestMiddleware {
       userAgent,
       startTime: Date.now(),
       deviceInfo,
+      geoLocation,
     };
 
     // 附加到请求对象，方便下游兼容性读取

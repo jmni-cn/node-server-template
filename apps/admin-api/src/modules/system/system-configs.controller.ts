@@ -18,6 +18,7 @@ import {
 import { Permissions } from '@platform/auth';
 import { OperationLogDecorator } from '@platform/audit';
 import {
+  ConfigDefinitionVo,
   QueryConfigDto,
   SetConfigDto,
   SystemConfigService,
@@ -39,12 +40,32 @@ export class SystemConfigsController {
     return this.systemConfigService.list(dto);
   }
 
+  @Get('definitions')
+  @Permissions('sys:config:read')
+  @ApiOperation({
+    summary: '配置定义目录（键/默认/来源/业务含义）',
+    description:
+      '聚合各 lib 注册的运行期配置定义，并叠加当前生效值与来源（db/env/code_default）。机密项当前值已脱敏。',
+  })
+  @ApiArrayResponse(ConfigDefinitionVo)
+  definitions(): Promise<ConfigDefinitionVo[]> {
+    return this.systemConfigService.getDefinitions();
+  }
+
   @Get('group/:group')
   @Permissions('sys:config:read')
   @ApiOperation({ summary: '按分组取配置' })
   @ApiArrayResponse(SystemConfigVo)
   byGroup(@Param('group') group: string): Promise<SystemConfigVo[]> {
     return this.systemConfigService.getByGroup(group);
+  }
+
+  @Get(':key')
+  @Permissions('sys:config:read')
+  @ApiOperation({ summary: '配置详情（按 key；机密项 value 已脱敏）' })
+  @ApiBaseResponse(SystemConfigVo)
+  detail(@Param('key') key: string): Promise<SystemConfigVo> {
+    return this.systemConfigService.getVo(key);
   }
 
   @Post()

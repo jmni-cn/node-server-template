@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsBoolean, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class UpdateRoleDto {
   @ApiPropertyOptional({ description: '角色名称' })
@@ -13,4 +13,9 @@ export class UpdateRoleDto {
   @IsString()
   @MaxLength(255)
   description?: string;
+
+  @ApiPropertyOptional({ description: '是否启用' })
+  @IsOptional()
+  @IsBoolean()
+  enabled?: boolean;
 }

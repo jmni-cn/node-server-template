@@ -64,6 +64,24 @@ export interface TaskJobData extends BaseJobData {
   payload?: Record<string, unknown>;
 }
 
+/** 死信（DLQ）记录负载：重试耗尽的失败 job 元数据。 */
+export interface DeadLetterJobData extends BaseJobData {
+  /** 原队列名 */
+  originQueue: string;
+  /** 原 job 名 */
+  originJobName: string;
+  /** 原 job id（若有） */
+  originJobId: string | null;
+  /** 原 job 负载（已序列化的普通对象） */
+  originData: unknown;
+  /** 已尝试次数 */
+  attemptsMade: number;
+  /** 失败原因（最后一次错误信息） */
+  failedReason: string | null;
+  /** 进入死信的时间戳（ISO） */
+  deadLetteredAt: string;
+}
+
 /** 入队选项（透传给 BullMQ add）。 */
 export interface EnqueueOptions {
   /** 延迟毫秒数 */
@@ -89,6 +107,7 @@ export interface QueueJobDataMap {
   'sso-sync': SsoSyncJobData;
   task: TaskJobData;
   system: BaseJobData;
+  'dead-letter': DeadLetterJobData;
 }
 
 export type { QueueName };

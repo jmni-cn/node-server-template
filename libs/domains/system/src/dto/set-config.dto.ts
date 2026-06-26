@@ -1,12 +1,14 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  IsBoolean,
   IsEnum,
+  IsInt,
   IsOptional,
   IsString,
   Length,
   MaxLength,
 } from 'class-validator';
-import { SystemConfigType } from '../entities/system-config.entity';
+import { SystemConfigType } from '@platform/config';
 
 /** 设置（创建或更新）系统配置 DTO。 */
 export class SetConfigDto {
@@ -44,4 +46,23 @@ export class SetConfigDto {
   @IsString()
   @MaxLength(255)
   description?: string;
+
+  @ApiPropertyOptional({
+    description: '是否启用（禁用后该 DB 覆盖失效，读取回落到 env/代码默认）',
+    default: true,
+  })
+  @IsOptional()
+  @IsBoolean()
+  enabled?: boolean;
+
+  @ApiPropertyOptional({ description: '展示标签', maxLength: 100 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  label?: string;
+
+  @ApiPropertyOptional({ description: '排序（升序）', default: 0 })
+  @IsOptional()
+  @IsInt()
+  sort?: number;
 }

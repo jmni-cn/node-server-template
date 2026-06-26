@@ -10,6 +10,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { QueueProducer, QUEUE_NAMES, JOB_NAMES } from '@platform/queue';
 import type { UserEventJobData } from '@platform/queue';
+import { PasswordPolicyService } from '@platform/security';
 import { EndUser } from '../entities/end-user.entity';
 import { UserProfile } from '../entities/user-profile.entity';
 import { RegisterDto } from '../dto/register.dto';
@@ -24,6 +25,7 @@ export class RegisterService {
     private readonly endUserService: EndUserService,
     private readonly credentialService: CredentialService,
     private readonly queueProducer: QueueProducer,
+    private readonly passwordPolicy: PasswordPolicyService,
     @InjectRepository(UserProfile)
     private readonly profileRepository: Repository<UserProfile>,
   ) {}
@@ -71,6 +73,9 @@ export class RegisterService {
     password: string;
     nickname: string | null;
   }): Promise<EndUser> {
+    // 写库前强制密码强度校验（弱密码抛 SEC_PASSWORD_TOO_WEAK）。
+    this.passwordPolicy.validate(input.password);
+
     const user = await this.endUserService.create({
       username: input.username,
       email: input.email,

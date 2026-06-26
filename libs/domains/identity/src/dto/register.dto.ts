@@ -26,9 +26,9 @@ export class RegisterDto {
   @MaxLength(20)
   phone?: string;
 
-  @ApiProperty({ description: '明文密码', minLength: 6, maxLength: 128 })
+  @ApiProperty({ description: '明文密码', minLength: 8, maxLength: 128 })
   @IsString()
-  @Length(6, 128)
+  @Length(8, 128)
   password: string;
 
   @ApiPropertyOptional({ description: '昵称', maxLength: 50 })

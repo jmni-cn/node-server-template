@@ -1,5 +1,6 @@
 import { WorkerHost } from '@nestjs/bullmq';
 import type { Job } from 'bullmq';
+import { runWithBullJobContext } from '@core/request-context';
 
 /**
  * BaseQueueProcessor — worker 侧 processor 的抽象基类。
@@ -25,6 +26,9 @@ export abstract class BaseQueueProcessor extends WorkerHost {
   /**
    * BullMQ worker 入口：按 job.name 分发。
    * 未注册的 job 名直接抛错（以 rejected Promise 形式），交由 BullMQ 重试/失败处理。
+   *
+   * 处理前从 job 负载重建请求上下文（requestId/traceId/sub 等），
+   * 使 worker 侧的日志 / 审计 / 安全事件能延续原始 HTTP 请求的链路标识。
    */
   process(job: Job): Promise<unknown> {
     const handler = this.handlers[job.name];
@@ -35,6 +39,6 @@ export abstract class BaseQueueProcessor extends WorkerHost {
         ),
       );
     }
-    return Promise.resolve(handler(job));
+    return runWithBullJobContext(job, () => Promise.resolve(handler(job)));
   }
 }

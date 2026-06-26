@@ -9,11 +9,16 @@ import {
   Res,
 } from '@nestjs/common';
 import type { FastifyReply } from 'fastify';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ConfigType } from '@nestjs/config';
 import { jwtConfig, ssoConfig } from '@core/config';
 import { ApiBaseResponse } from '@core/common';
-import { Public, setRefreshTokenCookie } from '@platform/auth';
+import {
+  CurrentUser,
+  Public,
+  setRefreshTokenCookie,
+  type UserAuthUser,
+} from '@platform/auth';
 
 import { AuthTokenVo } from '../auth/vo';
 import { UserSsoService } from './user-sso.service';
@@ -53,9 +58,34 @@ export class UserSsoController {
     void reply.redirect(url, 302);
   }
 
+  /**
+   * 发起「绑定意图」SSO 授权跳转（**需登录**，非 @Public）。
+   *
+   * 已登录用户访问此端点 → 302 跳转到 provider 授权页（state 携带当前用户，
+   * intent=bind）；provider 回调到 `GET /sso/:provider/callback` 后，由
+   * {@link UserSsoService} 把经验证的外部身份绑定到当前用户（不登录、不开户）。
+   *
+   * 这是绑定外部账号的**唯一正确路径**：providerUserId 始终来自服务端验证的回调，
+   * 客户端无从伪造。
+   */
+  @Get(':provider/bind/authorize')
+  @ApiBearerAuth('bearer')
+  @ApiOperation({ summary: 'SSO 绑定授权跳转（需登录）' })
+  async bindAuthorize(
+    @Param('provider') provider: string,
+    @CurrentUser() user: UserAuthUser,
+    @Res() reply: FastifyReply,
+  ): Promise<void> {
+    const { url } = await this.ssoService.buildBindAuthorizeRedirect(
+      provider,
+      user.sub,
+    );
+    void reply.redirect(url, 302);
+  }
+
   @Public()
   @Get(':provider/callback')
-  @ApiOperation({ summary: 'SSO 回调（下发一次性登录码）' })
+  @ApiOperation({ summary: 'SSO 回调（登录下发一次性登录码 / 绑定返回结果）' })
   @ApiBaseResponse(SsoCodeVo)
   async callback(
     @Param('provider') provider: string,
@@ -63,13 +93,26 @@ export class UserSsoController {
     @Res({ passthrough: true }) res: FastifyReply,
     @Query('state') state?: string,
     @Query('redirectUri') redirectUri?: string,
-  ): Promise<SsoCodeVo | void> {
-    const { code: loginCode } = await this.ssoService.handleCallback(
+  ): Promise<SsoCodeVo | { bound: true; provider: string } | void> {
+    const result = await this.ssoService.handleCallback(
       provider,
       code,
       state,
       redirectUri,
     );
+
+    // 绑定意图：不签发会话/登录码。配置了前端重定向则 302 携带 bind 成功标记，
+    // 否则直接返回绑定结果 JSON。
+    if (result.intent === 'bind') {
+      if (this.sso.postLoginRedirect) {
+        const url = `${this.sso.postLoginRedirect}?bind=success&provider=${encodeURIComponent(provider)}`;
+        void res.redirect(url, 302);
+        return;
+      }
+      return { bound: true, provider };
+    }
+
+    const loginCode = result.code;
     // 配置了前端重定向地址：302 携带 code（无令牌）。
     if (this.sso.postLoginRedirect) {
       const url = `${this.sso.postLoginRedirect}?code=${encodeURIComponent(loginCode)}`;

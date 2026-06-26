@@ -17,6 +17,9 @@ export class RoleVo {
 
   @ApiProperty({ description: '是否系统内置角色' })
   isSystem: boolean;
+
+  @ApiProperty({ description: '是否启用' })
+  enabled: boolean;
 }
 
 export class RoleDetailVo extends RoleVo {

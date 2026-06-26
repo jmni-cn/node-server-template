@@ -6,6 +6,8 @@
  */
 export * from './request-context.types';
 export * from './request-context.util';
+export * from './geo-location.util';
+export * from './bull-job-context.util';
 export * from './request-context.service';
 export * from './request-context.middleware';
 export * from './request-context.interceptor';

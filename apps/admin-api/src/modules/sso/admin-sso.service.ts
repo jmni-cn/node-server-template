@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { BusinessException } from '@core/common';
+import { OperationLogService } from '@platform/audit';
 import {
   SsoAuthorizeService,
   SsoCallbackService,
@@ -39,6 +40,7 @@ export class AdminSsoService {
     private readonly roleService: RoleService,
     private readonly securityEventService: SecurityEventService,
     private readonly adminAuthService: AdminAuthService,
+    private readonly operationLogService: OperationLogService,
   ) {}
 
   /** 构建 SSO 授权跳转地址（签发并持久化 state 防 CSRF）。 */
@@ -65,11 +67,16 @@ export class AdminSsoService {
     state: string | undefined,
     redirectUri?: string,
   ): Promise<{ code: string }> {
-    const { user } = await this.callbackService.handleCallback(provider, code, {
+    const result = await this.callbackService.handleCallback(provider, code, {
       state,
       redirectUri,
       subjectType: 'admin',
     });
+    // 管理端 SSO 仅发起登录意图，回调必为 login；其它意图视为状态异常。
+    if (result.intent !== 'login') {
+      throw new BusinessException(SsoErrorCode.SSO_STATE_MISMATCH);
+    }
+    const { user } = result;
 
     // 重新加载完整管理员并做状态闸门。
     const fullUser = await this.adminUserService.findByUid(user.uid);
@@ -104,6 +111,18 @@ export class AdminSsoService {
       refreshToken: session.refreshToken,
       refreshExpiresAt: session.refreshExpiresAt.toISOString(),
       userUid: fullUser.uid,
+    });
+
+    // 审计：SSO 回调用 @Res() 重定向，无法走 OperationLogInterceptor，
+    // 故在此显式同步落库一条 SSO_LOGIN 操作日志（操作人/IP/设备从 RequestContext 兜底）。
+    await this.operationLogService.createWithContext({
+      module: 'OAuth',
+      action: 'SSO_LOGIN',
+      method: 'GET',
+      path: `/sso/${provider}/callback`,
+      sub: fullUser.uid,
+      username: fullUser.username,
+      result: { provider, success: true },
     });
 
     return { code: loginCode };

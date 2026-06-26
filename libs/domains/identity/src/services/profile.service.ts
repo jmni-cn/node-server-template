@@ -11,6 +11,7 @@ import { Repository } from 'typeorm';
 import { BusinessException } from '@core/common';
 import { QueueProducer, QUEUE_NAMES, JOB_NAMES } from '@platform/queue';
 import type { UserEventJobData } from '@platform/queue';
+import { PasswordPolicyService } from '@platform/security';
 import { UserProfile } from '../entities/user-profile.entity';
 import { UserProfileVo } from '../vo/user-profile.vo';
 import { UserProfileMapper } from '../mapper/user-profile.mapper';
@@ -35,6 +36,7 @@ export class ProfileService {
     private readonly credentialService: CredentialService,
     private readonly sessionService: SessionService,
     private readonly securityEventService: SecurityEventService,
+    private readonly passwordPolicy: PasswordPolicyService,
   ) {}
 
   /** 按 EndUser UID 查询资料（不存在返回 null）。 */
@@ -89,6 +91,8 @@ export class ProfileService {
     if (!matched) {
       throw new BusinessException(IdentityErrorCode.USER_PASSWORD_INCORRECT);
     }
+    // 写新密码前强制密码强度校验（弱密码抛 SEC_PASSWORD_TOO_WEAK）。
+    this.passwordPolicy.validate(dto.newPassword);
     await this.credentialService.setPassword(
       SUBJECT,
       endUserUid,

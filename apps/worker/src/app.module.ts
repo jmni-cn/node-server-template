@@ -21,6 +21,8 @@ import { SystemMaintenanceProcessor } from './processors/system/system-maintenan
 
 import { CleanupSchedule } from './schedules/cleanup.schedule';
 import { SystemMaintenanceSchedule } from './schedules/system-maintenance.schedule';
+import { TaskDispatchSchedule } from './schedules/task-dispatch.schedule';
+import { TaskStaleRecoverySchedule } from './schedules/task-stale-recovery.schedule';
 
 /**
  * worker 根模块。
@@ -55,7 +57,15 @@ const scheduleEnabled =
     TaskRetryProcessor,
     SystemMaintenanceProcessor,
     // ---- schedules（仅在启用时注册）----
-    ...(scheduleEnabled ? [CleanupSchedule, SystemMaintenanceSchedule] : []),
+    ...(scheduleEnabled
+      ? [
+          CleanupSchedule,
+          SystemMaintenanceSchedule,
+          // 任务可靠性兜底：PENDING 扫描投递 + 卡死任务恢复。
+          TaskDispatchSchedule,
+          TaskStaleRecoverySchedule,
+        ]
+      : []),
   ],
 })
 export class AppModule {}

@@ -101,6 +101,11 @@ export interface BaseAuthUser {
   pv: number;
   /** Token 类型 */
   typ: TokenType;
+  /**
+   * Token 过期时间（Unix 秒，RFC 7519 exp）。
+   * 由策略从 payload 透传，供 logout 按"剩余有效期"精确设置黑名单 TTL 等用途。
+   */
+  exp?: number;
 }
 
 /**
