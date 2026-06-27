@@ -73,11 +73,11 @@ export class TaskRetryProcessor extends BaseQueueProcessor {
 
   private async execute(data: TaskJobData): Promise<void> {
     const { taskUid, type } = data;
-    // 乐观锁原子认领：仅当任务处于可运行态时才认领。认领失败说明已被其它 worker
-    // 抢先处理（或状态已流转），直接跳过避免重复执行。
-    const claimed = await this.taskService.claim(taskUid);
+    // 幂等抢占：仅当任务处于可认领态（PENDING / RETRYING）时才认领；抢不到（已被其它
+    // 投递处理或已终态）返回 null，直接幂等跳过，不触发 BullMQ 重试。
+    const claimed = await this.taskService.tryClaimTask(taskUid);
     if (!claimed) {
-      this.logger.warn('Task already claimed by another worker, skip', {
+      this.logger.warn('Task not claimable (idempotent skip)', {
         taskUid,
         type,
       });
@@ -86,11 +86,12 @@ export class TaskRetryProcessor extends BaseQueueProcessor {
     await this.taskService.addLog(taskUid, 'info', `执行任务 type=${type}`);
     try {
       // 通用占位：真实执行器按 type 分派。此处直接标记成功。
-      await this.taskService.markSuccess(taskUid);
+      await this.taskService.completeTask(taskUid);
       this.logger.log('Task executed', { taskUid, type });
     } catch (err) {
       const message = (err as Error).message;
-      await this.taskService.markFailed(taskUid, message);
+      // 失败时记录通用错误码与信息；failTask 内部按剩余次数决定 RETRYING/FAILED。
+      await this.taskService.failTask(taskUid, 'TASK_EXECUTION_FAILED', message);
       await this.taskService.addLog(taskUid, 'error', message);
       throw err;
     }

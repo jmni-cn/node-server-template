@@ -9,7 +9,12 @@ import {
 } from '@platform/config';
 import { QueueModule, QUEUE_NAMES } from '@platform/queue';
 import { Task, TaskLog } from './entities';
-import { TaskService, TaskQueryService, TaskRetryService } from './services';
+import {
+  TaskService,
+  TaskQueryService,
+  TaskRetryService,
+  TaskRetentionService,
+} from './services';
 import { TaskAssembler } from './assembler';
 import { TaskErrorCodeHttpStatus, TASK_CONFIG_KEYS } from './constants';
 
@@ -68,7 +73,19 @@ registerConfigDefinitions([
     ConfigRuntimeModule,
     QueueModule.registerQueues([QUEUE_NAMES.TASK]),
   ],
-  providers: [TaskService, TaskQueryService, TaskRetryService, TaskAssembler],
-  exports: [TaskService, TaskQueryService, TaskRetryService, TaskAssembler],
+  providers: [
+    TaskService,
+    TaskQueryService,
+    TaskRetryService,
+    TaskRetentionService,
+    TaskAssembler,
+  ],
+  exports: [
+    TaskService,
+    TaskQueryService,
+    TaskRetryService,
+    TaskRetentionService,
+    TaskAssembler,
+  ],
 })
 export class TaskModule {}

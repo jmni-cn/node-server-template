@@ -8,7 +8,11 @@ import { Task } from '../entities';
 import { TaskStatus, TaskErrorCode } from '../constants';
 
 /**
- * 任务重试服务：将失败任务重新入队执行。
+ * 任务重试服务（主动重新入队）。
+ *
+ * 与 {@link TaskService.retryTask}（重置为 PENDING 交由 dispatcher 兜底投递）不同，
+ * 本服务在校验后将失败任务置为 RETRYING 并**主动重新入队**（JOB_NAMES.TASK.RETRY），
+ * 用于需要立即重投的场景（如 worker 的 retry-task job）。
  */
 @Injectable()
 export class TaskRetryService {
@@ -22,7 +26,7 @@ export class TaskRetryService {
   }
 
   /**
-   * 重试一个失败的任务。
+   * 重试一个失败的任务并立即重新入队。
    *
    * - 仅允许 FAILED 状态的任务重试，否则抛 TASK_INVALID_STATE；
    * - 已达最大尝试次数则抛 TASK_MAX_ATTEMPTS；
@@ -41,11 +45,11 @@ export class TaskRetryService {
       });
     }
 
-    if (task.attempts >= task.maxAttempts) {
+    if (task.attempt >= task.maxAttempt) {
       throw new BusinessException(TaskErrorCode.TASK_MAX_ATTEMPTS, {
         uid,
-        attempts: task.attempts,
-        maxAttempts: task.maxAttempts,
+        attempt: task.attempt,
+        maxAttempt: task.maxAttempt,
       });
     }
 
@@ -59,12 +63,12 @@ export class TaskRetryService {
         {
           taskUid: task.uid,
           type: task.type,
-          payload: task.payload ?? undefined,
+          payload: task.inputJson ?? undefined,
         },
         {
-          // 以 task.uid 为 jobId 跨完成态去重；剩余尝试次数 = maxAttempts - attempts。
-          jobId: `${task.uid}:retry:${task.attempts}`,
-          attempts: Math.max(1, task.maxAttempts - task.attempts),
+          // 以 task.uid 为基的 jobId 跨完成态去重；剩余尝试次数 = maxAttempt - attempt。
+          jobId: `${task.uid}:retry:${task.attempt}`,
+          attempts: Math.max(1, task.maxAttempt - task.attempt),
           backoff: { type: 'exponential', delay: 1000 },
         },
       );

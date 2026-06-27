@@ -43,12 +43,12 @@ export class TaskDispatchSchedule {
           {
             taskUid: task.uid,
             type: task.type,
-            payload: task.payload ?? undefined,
+            payload: task.inputJson ?? undefined,
           },
           {
             // jobId=task.uid 跨完成态去重，重复投递幂等。
             jobId: task.uid,
-            attempts: task.maxAttempts,
+            attempts: task.maxAttempt,
             backoff: { type: 'exponential', delay: 1000 },
           },
         );
